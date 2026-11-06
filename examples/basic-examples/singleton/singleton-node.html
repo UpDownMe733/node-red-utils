@@ -1,0 +1,28 @@
+<script type="text/javascript" src="node-red-resourceendpoint/node-red-singleton/NodeRedSingletonFrontend.js"></script>
+
+<script type="text/javascript">
+    RED.nodes.registerType('singleton-node', {
+        category: 'node-red-utils examples',
+        color: '#ffcccc',
+        singleton: true,
+        defaults: {
+            name: { value: '' }
+        },
+        inputs: 1,
+        outputs: 1,
+        icon: 'font-awesome/fa-lock',
+        label: function() { return this.name || 'singleton-node'; }
+    });
+</script>
+
+<script type="text/html" data-template-name="singleton-node">
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+</script>
+
+<script type="text/html" data-help-name="singleton-node">
+    <p>Only one instance of this node can exist in the editor, across all flow tabs.</p>
+    <p>Attempting to add a second instance will be prevented by the editor.</p>
+</script>

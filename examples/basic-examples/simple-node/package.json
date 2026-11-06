@@ -1,0 +1,14 @@
+{
+  "name": "node-red-utils-example-simple-node",
+  "version": "1.0.0",
+  "description": "Simple Node-RED node using node-red-utils",
+  "node-red": {
+    "nodes": {
+      "simple-node": "simple-node.js"
+    }
+  },
+  "dependencies": {
+    "@nrutils/node-red-utils": "^0.1.0"
+  },
+  "license": "Apache-2.0"
+}

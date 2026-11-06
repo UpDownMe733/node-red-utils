@@ -1,0 +1,50 @@
+<script type="text/javascript">
+    RED.nodes.registerType('sensor-view', {
+        category: 'node-red-utils examples',
+        color: '#c7e9c0',
+        defaults: {
+            name: { value: '' },
+            producer: { value: '' }
+        },
+        inputs: 1,
+        outputs: 1,
+        icon: 'font-awesome/fa-eye',
+        label: function() { return this.name || 'sensor-view'; },
+        oneditprepare: function() {
+            const node = this;
+            const select = $('#node-input-producer');
+            // The producer id is the sensor-sim node id. Show its name from the editor.
+            const label = (id) => { const n = RED.nodes.node(id); return (n && n.name) || id; };
+            $.getJSON('node-red-pubsub-bus/producers', function(producers) {
+                const running = producers.filter((p) =>
+                    p.entries.some((e) => e.name === 'reading' && e.type === 'example/reading_v1'));
+                select.empty().append($('<option>').val('').text('- select a sensor -'));
+                for (const p of running) {
+                    select.append($('<option>').val(p.producerId).text(label(p.producerId)));
+                }
+                // Keep a saved sensor that does not run now
+                if (node.producer && !running.some((p) => p.producerId === node.producer)) {
+                    select.append($('<option>').val(node.producer).text(label(node.producer) + ' (not running)'));
+                }
+                select.val(node.producer);
+            });
+        }
+    });
+</script>
+
+<script type="text/html" data-template-name="sensor-view">
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+    <div class="form-row">
+        <label for="node-input-producer"><i class="fa fa-feed"></i> Sensor</label>
+        <select id="node-input-producer"></select>
+    </div>
+</script>
+
+<script type="text/html" data-help-name="sensor-view">
+    <p>Shows the latest reading of a <code>sensor-sim</code> node in its status and adds it to each message as <code>msg.reading</code>.</p>
+    <p>The list shows only deployed, running sensors. Deploy a <code>sensor-sim</code> first, then open this dialog.</p>
+    <p>If the sensor stops, the status shows "no sensor" and <code>msg.reading</code> is <code>null</code> until the sensor runs again.</p>
+</script>

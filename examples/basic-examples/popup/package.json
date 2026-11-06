@@ -1,0 +1,14 @@
+{
+  "name": "node-red-utils-example-popup",
+  "version": "1.0.0",
+  "description": "Node-RED node with popup panel using node-red-utils",
+  "node-red": {
+    "nodes": {
+      "popup-node": "popup-node.js"
+    }
+  },
+  "dependencies": {
+    "@nrutils/node-red-utils": "^0.1.0"
+  },
+  "license": "Apache-2.0"
+}
