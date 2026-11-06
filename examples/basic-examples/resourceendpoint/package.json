@@ -1,0 +1,14 @@
+{
+  "name": "node-red-utils-example-resourceendpoint",
+  "version": "1.0.0",
+  "description": "Node-RED node serving static files using node-red-utils",
+  "node-red": {
+    "nodes": {
+      "resourceendpoint-node": "resourceendpoint-node.js"
+    }
+  },
+  "dependencies": {
+    "@nrutils/node-red-utils": "^0.1.0"
+  },
+  "license": "Apache-2.0"
+}

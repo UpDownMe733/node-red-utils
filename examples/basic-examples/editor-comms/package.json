@@ -1,0 +1,14 @@
+{
+  "name": "node-red-utils-example-editor-comms",
+  "version": "1.0.0",
+  "description": "Node-RED node with editor communication using node-red-utils",
+  "node-red": {
+    "nodes": {
+      "editor-comms-node": "editor-comms-node.js"
+    }
+  },
+  "dependencies": {
+    "@nrutils/node-red-utils": "^0.1.0"
+  },
+  "license": "Apache-2.0"
+}

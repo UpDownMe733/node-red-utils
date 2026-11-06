@@ -1,0 +1,50 @@
+<script type="text/javascript" src="node-red-resourceendpoint/node-red-editorcomms/EditorCommsFrontend.js"></script>
+
+<script type="text/javascript">
+    RED.nodes.registerType('editor-comms-node', {
+        category: 'node-red-utils examples',
+        color: '#c7e9c0',
+        defaults: {
+            name: { value: '' }
+        },
+        inputs: 1,
+        outputs: 1,
+        icon: 'bridge.svg',
+        // Show the last count from the runtime in the label
+        label: function() {
+            const name = this.name || 'editor-comms';
+            return this.messageCount ? `${name} (${this.messageCount})` : name;
+        },
+
+        // Declarative subscriptions - automatically bound to each node instance
+        nodeRedEditorComms_subscriptions: {
+            messageReceived: function(payload) {
+                // Editor nodes have no status(); redraw the label instead
+                this.messageCount = payload.count;
+                this.dirty = true;
+                RED.view.redraw();
+            }
+        },
+
+        button: {
+            onclick: function() {
+                // The runtime handler returns the stats
+                this.nodeRedEditorComms.publish('getStats', {})
+                    .then((stats) => RED.notify(`Total messages: ${stats.count}`))
+                    .catch((err) => RED.notify(err.message, 'warning'));
+            }
+        }
+    });
+</script>
+
+<script type="text/html" data-template-name="editor-comms-node">
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+</script>
+
+<script type="text/html" data-help-name="editor-comms-node">
+    <p>Demonstrates backend/frontend communication.</p>
+    <p>The label shows the number of messages the runtime got. Click the button to request the total from the backend.</p>
+</script>

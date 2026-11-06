@@ -1,0 +1,48 @@
+<script type="text/javascript" src="node-red-resourceendpoint/node-red-popup/NodeRedPopupFrontend.js"></script>
+<script type="text/javascript" src="node-red-resourceendpoint/node-red-editorcomms/EditorCommsFrontend.js"></script>
+
+<script type="text/javascript">
+    RED.nodes.registerType('popup-node', {
+        category: 'node-red-utils examples',
+        color: '#d4c4fb',
+        defaults: {
+            name: { value: '' },
+            nru_popupConfig: { value: { width: 200, height: 100, autoCloseTime: 0 } }
+        },
+        inputs: 1,
+        outputs: 1,
+        icon: 'comment.svg',
+        label: function() { return this.name || 'popup-node'; },
+
+        nru_popupInit: function() {
+            const div = document.getElementById('nru_popup.' + this.id + '.div');
+            $(div).empty().append($('<div style="padding:4px;font-size:11px;">').text('Waiting for message...'));
+            this.nodeRedEditorComms.publish('getLastMessage', {}).catch(() => {});    // not deployed yet
+        },
+
+        nodeRedEditorComms_subscriptions: {
+            lastMessage: function(payload) {
+                const div = document.getElementById('nru_popup.' + this.id + '.div');
+                if (div && payload) {
+                    // Message data: set it with text(), never as HTML, so it cannot run script in the editor
+                    $(div).empty().append($('<div style="padding:4px;font-size:11px;">').append(
+                        $('<strong>').text('Last: '),
+                        $('<span>').text(JSON.stringify(payload.payload)),
+                        $('<br>'),
+                        $('<small>').text(payload.time)));
+                }
+            }
+        }
+    });
+</script>
+
+<script type="text/html" data-template-name="popup-node">
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+</script>
+
+<script type="text/html" data-help-name="popup-node">
+    <p>Click the node to show/hide a popup panel displaying the last message.</p>
+</script>

@@ -1,0 +1,47 @@
+<script type="text/javascript" src="node-red-resourceendpoint/node-red-editorcomms/EditorCommsFrontend.js"></script>
+
+<script type="text/javascript">
+    RED.nodes.registerType('rate-meter', {
+        category: 'node-red-utils examples',
+        color: '#fdd0a2',
+        defaults: { name: { value: '' } },
+        inputs: 1,
+        outputs: 1,
+        icon: 'font-awesome/fa-tachometer',
+        label: function () { return this.name || 'rate-meter'; },
+
+        // From the runtime each second. Show it only in this node's open edit dialog.
+        nodeRedEditorComms_subscriptions: {
+            rate: function (text) { $('#rate-meter-live[data-node="' + this.id + '"]').text(text); }
+        },
+
+        oneditprepare: function () {
+            const node = this;      // in the click handler, "this" is the button
+            $('#rate-meter-live').attr('data-node', node.id);
+            $('#rate-meter-reset').on('click', function () {
+                node.nodeRedEditorComms.publish('reset').then(function (before) {
+                    RED.notify('Reset. Total before the reset: ' + before);
+                }).catch(function (err) {
+                    RED.notify(err.status === 404 ? 'Deploy the node first' : err.message, 'warning');
+                });
+            });
+        }
+    });
+</script>
+
+<script type="text/html" data-template-name="rate-meter">
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+    <div class="form-row">
+        <label>Rate</label>
+        <span id="rate-meter-live">no data yet</span>
+        <button type="button" id="rate-meter-reset" class="red-ui-button">Reset</button>
+    </div>
+</script>
+
+<script type="text/html" data-help-name="rate-meter">
+    <p>Measures messages per second over the last 5 seconds, in a worker thread. The node status
+    and the edit dialog show the rate. Reset in the edit dialog sets the counts to zero.</p>
+</script>

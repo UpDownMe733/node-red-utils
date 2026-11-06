@@ -1,0 +1,32 @@
+<script type="text/javascript">
+    RED.nodes.registerType('resourceendpoint-node', {
+        category: 'node-red-utils examples',
+        color: '#b3d9ff',
+        defaults: {
+            name: { value: '' }
+        },
+        inputs: 1,
+        outputs: 1,
+        icon: 'file.svg',
+        label: function() { return this.name || 'resource-server'; }
+    });
+</script>
+
+<script type="text/html" data-template-name="resourceendpoint-node">
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+    <div class="form-row">
+        <a href="node-red-resourceendpoint/resourceendpoint-node/hello.txt" target="_blank">Open the served file</a>
+    </div>
+</script>
+
+<script type="text/html" data-help-name="resourceendpoint-node">
+    <p>Serves the files in the <code>public/</code> folder of its own package.</p>
+    <h3>Usage</h3>
+    <p>After deploy, files are accessible at:<br>
+    <code>/node-red-resourceendpoint/resourceendpoint-node/{filename}</code></p>
+    <h3>Output</h3>
+    <p>Passes each message on with <code>msg.url</code> set to the URL of <code>hello.txt</code>.</p>
+</script>

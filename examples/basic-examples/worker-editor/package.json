@@ -1,0 +1,14 @@
+{
+  "name": "node-red-utils-example-worker-editor",
+  "version": "1.0.0",
+  "description": "Node-RED rate meter: a worker thread plus live data and a button in the edit dialog, using node-red-utils",
+  "node-red": {
+    "nodes": {
+      "rate-meter": "rate-meter.js"
+    }
+  },
+  "dependencies": {
+    "@nrutils/node-red-utils": "^0.1.0"
+  },
+  "license": "Apache-2.0"
+}

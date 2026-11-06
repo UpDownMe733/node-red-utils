@@ -1,0 +1,6 @@
+{
+    "name": "nru-test-nodes",
+    "version": "0.0.0",
+    "private": true,
+    "node-red": { "nodes": { "test-nodes": "nodes.js" } }
+}

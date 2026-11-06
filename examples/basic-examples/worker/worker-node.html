@@ -1,0 +1,30 @@
+<script type="text/javascript">
+    RED.nodes.registerType('worker-node', {
+        category: 'node-red-utils examples',
+        color: '#fdd0a2',
+        defaults: {
+            name: { value: '' },
+            iterations: { value: 1000000 }
+        },
+        inputs: 1,
+        outputs: 1,
+        icon: 'cog.svg',
+        label: function() { return this.name || 'worker-node'; }
+    });
+</script>
+
+<script type="text/html" data-template-name="worker-node">
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+    <div class="form-row">
+        <label for="node-input-iterations"><i class="fa fa-repeat"></i> Iterations</label>
+        <input type="number" id="node-input-iterations" placeholder="1000000">
+    </div>
+</script>
+
+<script type="text/html" data-help-name="worker-node">
+    <p>Offloads CPU-intensive computation to a worker thread.</p>
+    <p>Runs calculations without blocking the Node-RED event loop.</p>
+</script>

@@ -1,0 +1,14 @@
+{
+  "name": "node-red-utils-example-singleton",
+  "version": "1.0.0",
+  "description": "Node-RED singleton node using node-red-utils",
+  "node-red": {
+    "nodes": {
+      "singleton-node": "singleton-node.js"
+    }
+  },
+  "dependencies": {
+    "@nrutils/node-red-utils": "^0.1.0"
+  },
+  "license": "Apache-2.0"
+}

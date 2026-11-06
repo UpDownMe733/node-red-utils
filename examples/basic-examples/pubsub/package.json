@@ -1,0 +1,15 @@
+{
+  "name": "node-red-utils-example-pubsub",
+  "version": "1.0.0",
+  "description": "Two Node-RED nodes that share a sensor reading over the node-red-utils pub/sub bus",
+  "node-red": {
+    "nodes": {
+      "sensor-sim": "sensor-sim.js",
+      "sensor-view": "sensor-view.js"
+    }
+  },
+  "dependencies": {
+    "@nrutils/node-red-utils": "^0.1.0"
+  },
+  "license": "Apache-2.0"
+}

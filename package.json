@@ -1,0 +1,71 @@
+{
+	"name": "@nrutils/node-red-utils",
+	"version": "0.1.0",
+	"description": "Mixin toolkit for authors of Node-RED custom nodes: editor messaging, worker threads, popups, singletons, resource serving, pub/sub and optional GPU compute.",
+	"main": "index.js",
+	"scripts": {
+		"test": "node --test test/*.test.js",
+		"test:gpu": "node node-red-gpu/smoke-test.js"
+	},
+	"exports": {
+		".": "./index.js",
+		"./node-red-base": "./node-red-base/NodeRedNodeBase.js",
+		"./node-red-editorcomms": "./node-red-editorcomms/EditorCommsBackend.js",
+		"./node-red-resourceendpoint": "./node-red-resourceendpoint/NodeRedResourceEndpoint.js",
+		"./node-red-worker": "./node-red-worker/NodeRedWorker.js",
+		"./node-red-workerruntime": "./node-red-worker/NodeRedWorkerRuntime.js",
+		"./node-red-popup": "./node-red-popup/NodeRedPopupBackend.js",
+		"./node-red-singleton": "./node-red-singleton/NodeRedSingletonBackend.js",
+		"./node-red-pubsub-bus": "./node-red-pubsub-bus/NodeRedPubsubBus.js",
+		"./node-red-pubsub-bus-workerproxy": "./node-red-pubsub-bus/NodeRedPubsubBusWorkerProxy.js",
+		"./node-red-gpu": "./node-red-gpu/index.js",
+		"./node-red-gpu/backends/VulkanBackend": "./node-red-gpu/backends/VulkanBackend.js",
+		"./package.json": "./package.json"
+	},
+	"keywords": [
+		"node-red",
+		"node-red-utils",
+		"mixin",
+		"custom-nodes",
+		"worker-threads"
+	],
+	"author": "UpDownMe733",
+	"license": "Apache-2.0",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/UpDownMe733/node-red-utils.git"
+	},
+	"homepage": "https://github.com/UpDownMe733/node-red-utils#readme",
+	"bugs": {
+		"url": "https://github.com/UpDownMe733/node-red-utils/issues"
+	},
+	"engines": {
+		"node": ">=18"
+	},
+	"files": [
+		"index.js",
+		"node-red-base/",
+		"node-red-editorcomms/",
+		"node-red-gpu/",
+		"node-red-popup/",
+		"node-red-pubsub-bus/",
+		"node-red-resourceendpoint/",
+		"node-red-singleton/",
+		"node-red-worker/",
+		"!node-red-gpu/native/build/",
+		"!node-red-gpu/smoke-test.js",
+		"CHANGELOG.md"
+	],
+	"dependencies": {
+		"acorn": "^8.16.0"
+	},
+	"optionalDependencies": {
+		"node-addon-api": "^8.7.0"
+	},
+	"devDependencies": {
+		"node-red": "^4.1.17"
+	},
+	"publishConfig": {
+		"access": "public"
+	}
+}
