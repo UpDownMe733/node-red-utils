@@ -23,6 +23,10 @@ npm install @nrutils/node-red-utils
 
 Works with Node-RED 4 and Node.js 18 or later.
 
+## Building with AI
+
+Use an AI coding assistant to build nodes!  Here's some [AI dreamed up paste-ready prompts](./prompts/README.md).  Not particularly useful nodes though.
+
 ## Example: a counter node
 
 A node that counts messages, shows the count as its status, and resets the count when you click its button in the editor.
