@@ -63,7 +63,7 @@
 		"node-addon-api": "^8.7.0"
 	},
 	"devDependencies": {
-		"node-red": "^4.1.17"
+		"node-red": "^5.0.9"
 	},
 	"publishConfig": {
 		"access": "public"
