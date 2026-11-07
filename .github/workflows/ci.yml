@@ -17,6 +17,9 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
       - run: npm ci
+      # Node-RED 5 needs Node 22.9. Older runners test against Node-RED 4.
+      - if: matrix.node < 22
+        run: npm install --no-save node-red@4
       - run: npm test
       - name: Pack and load the tarball
         run: |
