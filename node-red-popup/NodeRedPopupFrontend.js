@@ -125,11 +125,7 @@ if (!window.popupInited) {
     const removePopups = async (workspace) => {
         window.popupEventTracker.removeAllListeners();
         RED.nodes.filterNodes( {z:workspace} ).forEach ( node => {
-            const existingGroup = document.getElementById('nru_popup.' + node.id + '.group');
-            if (existingGroup) { 
-                window.popupStates[node.id] = existingGroup.style.display === 'none' ? 'closed' : 'open';
-                existingGroup.remove() 
-            }
+            document.getElementById('nru_popup.' + node.id + '.group')?.remove();
         });
     }
 
@@ -147,7 +143,11 @@ if (!window.popupInited) {
 
     // Smallest popup size in pixels. Smaller sizes are made this size.
     const MIN_WIDTH = 100, MIN_HEIGHT = 50;
+    // Where a popup sits under its node until the user moves it
+    const DEFAULT_X = 0, DEFAULT_Y = 50;
     const warnedTypes = new Set();
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const SVG_NS = "http://www.w3.org/2000/svg";
 
     const createPopup = async ( node ) => {
 
@@ -155,13 +155,16 @@ if (!window.popupInited) {
 
         // The node's own config (saved after a resize) wins over the default of the type
         const config = { ...node._def.defaults.nru_popupConfig.value, ...node.nru_popupConfig };
-        const problem = ['width', 'height', 'autoCloseTime']
-            .find(key => typeof config[key] !== 'number' || !(config[key] >= 0));
+        config.x ??= DEFAULT_X;
+        config.y ??= DEFAULT_Y;
+        const problem = ['width', 'height', 'autoCloseTime', 'x', 'y']
+            .find(key => !Number.isFinite(config[key]) || (config[key] < 0 && !['x', 'y'].includes(key)));
         if (problem) {
-            console.error(`Popup of node ${node.id}: nru_popupConfig.${problem} must be a number, 0 or more; got`, config[problem]);
+            const rule = ['x', 'y'].includes(problem) ? 'a number' : 'a number, 0 or more';
+            console.error(`Popup of node ${node.id}: nru_popupConfig.${problem} must be ${rule}; got`, config[problem]);
             if (!warnedTypes.has(node.type)) {
                 warnedTypes.add(node.type);
-                RED.notify(`No popup for "${node.type}" nodes: nru_popupConfig.${problem} must be a number, 0 or more.`, 'warning');
+                RED.notify(`No popup for "${node.type}" nodes: nru_popupConfig.${problem} must be ${rule}.`, 'warning');
             }
             return;
         }
@@ -182,8 +185,15 @@ if (!window.popupInited) {
         const svgElement = document.getElementById(node.id);
         let group = document.createElementNS("http://www.w3.org/2000/svg", "g");
         group.setAttribute("id", "nru_popup." + node.id + ".group");
-        group.setAttribute("transform", "translate(0, 50)");
         group.style.display = (window.popupStates[node.id] === 'open') ? 'block' : 'none';
+        group.style.filter = 'drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3))';
+
+        // The body holds everything that is drawn. It unfurls from the node on open, so the
+        // group keeps its own transform and display.
+        const frame = document.createElementNS(SVG_NS, "g");   // the position of the popup
+        frame.setAttribute("transform", `translate(${config.x}, ${config.y})`);
+        const body = document.createElementNS(SVG_NS, "g");
+        body.style.transformOrigin = (parseFloat(rectElement.getAttribute('width')) / 2) + "px 0px";
 
         // Create base elements
         let rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
@@ -235,6 +245,7 @@ if (!window.popupInited) {
         statusBar.setAttribute("fill", "#e3e3e3");  // Light gray background
         statusBar.setAttribute("stroke", "#d4d4d4");
         statusBar.setAttribute("stroke-width", "1");
+        statusBar.style.cursor = 'grab';
 
         // Create text element for node info
         let statusText = document.createElementNS("http://www.w3.org/2000/svg", "text");
@@ -245,6 +256,7 @@ if (!window.popupInited) {
         statusText.setAttribute("font-size", "10");
         statusText.setAttribute("stroke-width", "0.2"); 
         statusText.setAttribute("fill", "#222");
+        statusText.style.pointerEvents = 'none';   // so that a drag on the text moves the popup
         statusText.textContent = '';
         statusText.fullText = '';
         statusText.setStatusText = function( text ) {
@@ -255,12 +267,47 @@ if (!window.popupInited) {
         };
 
         // Add elements to group
-        group.appendChild(rect);
-        group.appendChild(statusBar);
-        group.appendChild(statusText);
-        group.appendChild(foreignObject);
-        group.appendChild(resizeHandle);
+        body.appendChild(rect);
+        body.appendChild(statusBar);
+        body.appendChild(statusText);
+        body.appendChild(foreignObject);
+        body.appendChild(resizeHandle);
+        frame.appendChild(body);
+
+        // A line that ties the popup to its node, wherever the user puts it
+        const tether = document.createElementNS(SVG_NS, "line");
+        tether.setAttribute("stroke", "#8c8c8c");
+        tether.setAttribute("stroke-dasharray", "3 3");
+        tether.style.pointerEvents = 'none';
+        group.append(tether, frame);
         svgElement.appendChild(group);
+
+        // The tether runs from the bottom middle of the node to the nearest point of the popup
+        let popupX = config.x, popupY = config.y;
+        const placeTether = () => {
+            const nodeMidX = parseFloat(rectElement.getAttribute('width')) / 2;
+            const nodeBottom = parseFloat(rectElement.getAttribute('height'));
+            const popupWidth = parseFloat(rect.getAttribute('width'));
+            const popupHeight = parseFloat(rect.getAttribute('height'));
+            tether.setAttribute("x1", nodeMidX);
+            tether.setAttribute("y1", nodeBottom);
+            tether.setAttribute("x2", Math.min(Math.max(nodeMidX, popupX), popupX + popupWidth));
+            tether.setAttribute("y2", Math.min(Math.max(nodeBottom, popupY), popupY + popupHeight));
+        };
+        placeTether();
+
+        // The size and position go into the node, so they are saved with the flow
+        const saveConfig = () => {
+            node.nru_popupConfig = {
+                width: parseFloat(rect.getAttribute('width')),
+                height: parseFloat(rect.getAttribute('height')),
+                autoCloseTime: autoCloseTime,
+                x: popupX,
+                y: popupY
+            };
+            node.changed = true;
+            RED.nodes.dirty(true);
+        };
 
         // Resize functionality
         function sizeTextToFit( svgTextObject, width ) {
@@ -275,6 +322,27 @@ if (!window.popupInited) {
         //---------------------------------------------------------------------------------------------
         // Event Handlers
         //---------------------------------------------------------------------------------------------
+
+        let bodyAnimation = null;
+        const setOpen = (open) => {
+            bodyAnimation?.cancel();
+            window.popupStates[node.id] = open ? 'open' : 'closed';
+            const duration = reduceMotion.matches ? 0 : (open ? 260 : 120);
+            if (open) {
+                group.style.display = 'block';
+                svgElement.parentNode.appendChild(svgElement);  // bring to front
+                statusText.setStatusText(statusText.fullText);  // text set while hidden is not cut to fit
+                bodyAnimation = body.animate(
+                    [{ transform: 'scale(0.4)', opacity: 0 }, { transform: 'scale(1)', opacity: 1 }],
+                    { duration, easing: 'cubic-bezier(0.34, 1.56, 0.64, 1)' });  // overshoots, then settles
+            } else {
+                bodyAnimation = body.animate(
+                    [{ transform: 'scale(1)', opacity: 1 }, { transform: 'scale(0.4)', opacity: 0 }],
+                    { duration, easing: 'ease-in' });
+                bodyAnimation.onfinish = () => { group.style.display = 'none'; };
+            }
+        };
+
         let clickTimer = null;
         let autoCloseTimeout = null;
         let mouseDownX = 0, mouseDownY = 0;
@@ -295,16 +363,11 @@ if (!window.popupInited) {
                 return;
             }
             clickTimer = setTimeout(() => {
-                const isHidden = group.style.display === 'none';
-                group.style.display = isHidden ? 'block' : 'none';
-                // Save the popup state
-                window.popupStates[node.id] = isHidden ? 'open' : 'closed';
-                if (isHidden) {
-                    svgElement.parentNode.appendChild(svgElement);
-                    if (autoCloseTime > 0) {
-                        clearTimeout(autoCloseTimeout);
-                        autoCloseTimeout = setTimeout(() => { group.style.display = 'none';}, autoCloseTime);
-                    }
+                const opening = window.popupStates[node.id] !== 'open';
+                setOpen(opening);
+                if (opening && autoCloseTime > 0) {
+                    clearTimeout(autoCloseTimeout);
+                    autoCloseTimeout = setTimeout(() => setOpen(false), autoCloseTime);
                 }
                 clickTimer = null;
             }, 250);
@@ -330,7 +393,8 @@ if (!window.popupInited) {
         let newWidth = 0, newHeight = 0, resized = false;
         const resize = (event)=> {
             resized = true;
-            const {dx, dy} = {dx: event.clientX - startX, dy: event.clientY - startY};
+            const scale = RED.view.scale();     // the canvas zoom
+            const {dx, dy} = {dx: (event.clientX - startX) / scale, dy: (event.clientY - startY) / scale};
             newWidth = Math.max(MIN_WIDTH, startWidth + dx);
             newHeight = Math.max(MIN_HEIGHT, startHeight + dy);
             statusBar.setAttribute('width', newWidth);
@@ -344,6 +408,7 @@ if (!window.popupInited) {
             divElement.style.width = (newWidth - 12) + 'px';
             divElement.style.height = (newHeight - 20 - 12) + 'px';
             resizeHandle.setAttribute("d", `M${newWidth - 6},${newHeight} l6,-6 l0,6 z`);
+            placeTether();
         }
         
         const stopResize = () => {
@@ -352,18 +417,42 @@ if (!window.popupInited) {
 
             // A click with no drag does not change the size
             if (!resized) return;
-            node.nru_popupConfig = {
-                width: newWidth, 
-                height: newHeight,
-                autoCloseTime: autoCloseTime
-            };
-            node.changed = true;
-            RED.nodes.dirty(true);
+            saveConfig();
+        }
+
+        // Drag the status bar to move the popup
+        let moveStartX, moveStartY, moveFromX, moveFromY, moved = false;
+        let docMoveMouseMoveListener, docMoveMouseUpListener;
+        const statusBarMouseDown = (event) => {
+            [moveStartX, moveStartY, moveFromX, moveFromY] = [event.clientX, event.clientY, popupX, popupY];
+            moved = false;
+            statusBar.style.cursor = 'grabbing';
+            docMoveMouseMoveListener = window.popupEventTracker.addListener(document, 'mousemove', move);
+            docMoveMouseUpListener = window.popupEventTracker.addListener(document, 'mouseup', stopMove);
+            event.preventDefault();
+            event.stopPropagation();
+        }
+
+        const move = (event) => {
+            moved = true;
+            const scale = RED.view.scale();
+            popupX = moveFromX + (event.clientX - moveStartX) / scale;
+            popupY = moveFromY + (event.clientY - moveStartY) / scale;
+            frame.setAttribute("transform", `translate(${popupX}, ${popupY})`);
+            placeTether();
+        }
+
+        const stopMove = () => {
+            window.popupEventTracker.removeListener(docMoveMouseMoveListener);
+            window.popupEventTracker.removeListener(docMoveMouseUpListener);
+            statusBar.style.cursor = 'grab';
+            if (moved) saveConfig();
         }
 
         window.popupEventTracker.addListener(rectElement, "mousedown", handleRectElementMouseDown);
         window.popupEventTracker.addListener(rectElement, "click", handleRectElementClick);
         window.popupEventTracker.addListener(resizeHandle, "mousedown", resizeHandleMouseDown);
+        window.popupEventTracker.addListener(statusBar, "mousedown", statusBarMouseDown);
 
         // Run the node's nru_popupInit function
         try {

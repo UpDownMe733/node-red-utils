@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- `nodeRedPopup`: the popup unfurls from its node with a spring animation. The user moves it by its status bar; the position is saved in `nru_popupConfig` (`x`, `y`) and a dashed line ties it to the node. A resize follows the zoom of the canvas.
+
 ## 0.1.0
 
 First public release.

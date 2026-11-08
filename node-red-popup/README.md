@@ -2,7 +2,7 @@
 
 EXPERIMENTAL. The API and the behavior can change in a minor release.
 
-A small resizable panel attached to a node in the editor. A click on the node opens or closes it.
+A small resizable, movable panel attached to a node in the editor. A click on the node opens or closes it. The panel unfurls from the node.
 
 ## Usage
 
@@ -88,12 +88,13 @@ A node gets a popup only if `defaults` has `nru_popupConfig`:
 - `width`: pixels, for the full popup. The minimum is 100; a smaller value gives 100.
 - `height`: pixels, for the full popup, with the 20 px status bar. The minimum is 50; a smaller value gives 50.
 - `autoCloseTime`: milliseconds until the popup hides itself. `0` keeps it open.
+- `x`, `y`: optional. The position of the popup's top left corner, in pixels from the top left corner of the node. Negative numbers are allowed. The default is `0` and `50`: under the node.
 
 The content area (`nru_popup.<nodeId>.div`) is 12 px narrower and 32 px lower than the popup. A resize by the user cannot go below 100 x 50 either.
 
-All three values must be numbers, 0 or more. If one is not, the node gets no popup, the editor shows a warning one time for the node type, and the browser console names the bad value.
+`width`, `height` and `autoCloseTime` must be numbers, 0 or more. `x` and `y` must be numbers. If one is not, the node gets no popup, the editor shows a warning one time for the node type, and the browser console names the bad value.
 
-When the user resizes a popup, the new size goes into the node's `nru_popupConfig`, so it is saved with the flow.
+The user drags the status bar to move a popup, and drags the bottom right corner to resize it. A dashed line ties the popup to its node, wherever it is. The new position or size goes into the node's `nru_popupConfig`, so it is saved with the flow. A move or resize follows the zoom of the canvas.
 
 ## Elements
 
@@ -104,6 +105,7 @@ Each popup creates elements with these ids:
 
 ## Behavior
 
+- With `prefers-reduced-motion`, the popup opens and closes without animation.
 - The popup is rebuilt when you change tabs, add the node, or deploy. `nru_popupInit` runs each time, so make it safe to call again.
 - The script draws into the editor's SVG (the node's `<g id="<nodeId>">` and `#red-ui-workspace`). If a future editor changes that structure, the popup can break. It was written for the Node-RED 4.1 editor.
 
