@@ -14,7 +14,7 @@ const REPO = path.resolve(__dirname, '..', '..');
 // NRU_LIB lets you run the tests against another copy of the library
 const LIB = process.env.NRU_LIB ? path.resolve(process.env.NRU_LIB) : REPO;
 const MODULES = ['node-red-base', 'node-red-editorcomms', 'node-red-resourceendpoint',
-    'node-red-popup', 'node-red-singleton', 'node-red-worker', 'node-red-pubsub-bus'];
+    'node-red-popup', 'node-red-singleton', 'node-red-worker', 'node-red-pubsub-bus', 'node-red-connection'];
 const FIXTURE = path.join(__dirname, '..', 'fixtures', 'test-nodes');
 const USER = 'admin';
 const PASSWORD = 'test';

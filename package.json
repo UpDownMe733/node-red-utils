@@ -18,6 +18,7 @@
 		"./node-red-singleton": "./node-red-singleton/NodeRedSingletonBackend.js",
 		"./node-red-pubsub-bus": "./node-red-pubsub-bus/NodeRedPubsubBus.js",
 		"./node-red-pubsub-bus-workerproxy": "./node-red-pubsub-bus/NodeRedPubsubBusWorkerProxy.js",
+		"./node-red-connection": "./node-red-connection/NodeRedConnection.js",
 		"./node-red-gpu": "./node-red-gpu/index.js",
 		"./node-red-gpu/backends/VulkanBackend": "./node-red-gpu/backends/VulkanBackend.js",
 		"./package.json": "./package.json"
@@ -45,6 +46,7 @@
 	"files": [
 		"index.js",
 		"node-red-base/",
+		"node-red-connection/",
 		"node-red-editorcomms/",
 		"node-red-gpu/",
 		"node-red-popup/",

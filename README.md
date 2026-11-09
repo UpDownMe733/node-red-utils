@@ -9,6 +9,7 @@ A toolkit for Node-RED custom nodes: worker threads, GPU compute, messages betwe
 - [`nodeRedGpu`](./node-red-gpu/README.md) (experimental): Vulkan compute kernels in worker threads, with a CPU fallback.
 - [`nodeRedEditorComms`](./node-red-editorcomms/README.md): messages between the runtime node and the same node in the editor.
 - [`nodeRedPubsubBus`](./node-red-pubsub-bus/README.md): pub/sub for data that nodes share without wires.
+- [`nodeRedConnection`](./node-red-connection/README.md): opens, closes and reconnects a client connection (TCP, MQTT, Modbus) while nodes hold it.
 - [`nodeRedResourceEndpoint`](./node-red-resourceendpoint/README.md): serves scripts, styles and images to the editor.
 - [`nodeRedPopup`](./node-red-popup/README.md) (experimental): a resizable panel that opens when you click the node in the editor.
 - [`nodeRedSingleton`](./node-red-singleton/README.md) (experimental): allows only one node of a type in the editor.
@@ -156,6 +157,7 @@ Put the features you want in the array of `createNode`; they apply in that order
 | `nodeRedGpu` | nothing; the GPU API is in the worker, from `nodeRedGpuWorker()` | none |
 | `nodeRedEditorComms` | `nodeRedEditorComms` | `node-red-resourceendpoint/node-red-editorcomms/EditorCommsFrontend.js` |
 | `nodeRedPubsubBus` | `nodeRedPubsubBus` | none |
+| `nodeRedConnection` | `nodeRedConnection`; call `manage()` to get the connection | none |
 | `nodeRedResourceEndpoint` | `nodeRedResourceEndpoint` | none |
 | `nodeRedPopup` | nothing | `node-red-resourceendpoint/node-red-popup/NodeRedPopupFrontend.js` |
 | `nodeRedSingleton` | nothing | `node-red-resourceendpoint/node-red-singleton/NodeRedSingletonFrontend.js` |

@@ -20,6 +20,8 @@ const NodeRedSingleton =            require('./node-red-singleton/NodeRedSinglet
 
 const NodeRedPubsubBus =            require('./node-red-pubsub-bus/NodeRedPubsubBus.js');
 
+const NodeRedConnection =           require('./node-red-connection/NodeRedConnection.js');
+
 module.exports = {
 
     NodeRedNodeBase:                NodeRedNodeBase.NodeRedNodeBase,
@@ -42,6 +44,8 @@ module.exports = {
     nodeRedPubsubBus:               NodeRedPubsubBus.nodeRedPubsubBus,
     getBus:                         NodeRedPubsubBus.getBus,
     NodeRedPubsubBus:               NodeRedPubsubBus.NodeRedPubsubBus,
+
+    nodeRedConnection:              NodeRedConnection.nodeRedConnection,
 
     // Loaded on first use, so that nodes without GPU code do not load the GPU module and acorn
     get nodeRedGpu()                { return require('./node-red-gpu/index.js').nodeRedGpu; },

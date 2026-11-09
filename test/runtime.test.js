@@ -5,6 +5,7 @@
 
 const { describe, it, before, after } = require('node:test');
 const assert = require('node:assert/strict');
+const net = require('net');
 const { startNodeRed, waitFor, sleep } = require('./helpers/node-red.js');
 
 const flows = (comment = 'v1', withCommsA = true, { w1Name = '', extra = [] } = {}) => [
@@ -316,5 +317,71 @@ describe('node-red-utils in a real Node-RED', { timeout: 60000 }, () => {
         await red.deploy(flows('relative', true, { extra: [{ id: 'rel', type: 'nru-test-a-worker', name: 'relative-path' }] }));
         const s = await waitFor(async () => { const s = await stats(); return s.initError.rel && s; }, 3000, 'init error');
         assert.match(s.initError.rel[0], /workerFile must be an absolute path.*"worker\.js"/);
+    });
+
+    /** A TCP server that records each socket and whether it closed */
+    async function tcpServer() {
+        const sockets = [];
+        const server = net.createServer((socket) => {
+            socket.resume();
+            socket.on('close', () => { socket.gone = true; });
+            sockets.push(socket);
+        });
+        await new Promise(r => server.listen(0, '127.0.0.1', r));
+        return { sockets, port: server.address().port, stop: () => { sockets.forEach(s => s.destroy()); server.close(); } };
+    }
+    const readyCount = (s, id) => (s.conn[id] || []).filter(x => x === 'ready').length;
+
+    it('nodeRedConnection reconnects a TCP client after the server drops the socket', async (t) => {
+        if (!red) return t.skip('Node-RED not found');
+        const srv = await tcpServer();
+        try {
+            await red.request('POST', '/nru-test-a/reset');
+            await red.deploy(flows('conn', true, { extra: [
+                { id: 'cc1', type: 'nru-test-a-conncfg', port: srv.port },
+                { id: 'cu1', type: 'nru-test-a-conn', client: 'cc1', x: 100, y: 100 }] }));
+            await waitFor(async () => readyCount(await stats(), 'cu1') === 1, 5000, 'first connection');
+            srv.sockets[0].destroy();
+            const s = await waitFor(async () => { const s = await stats(); return readyCount(s, 'cu1') === 2 && s; }, 5000, 'reconnect');
+            assert.deepEqual(s.conn.cu1, ['connecting', 'ready', 'failed', 'connecting', 'ready']);
+            assert.equal(srv.sockets.length, 2);
+            // A deploy without the nodes closes the client socket
+            await red.deploy(flows('conn-gone'));
+            await waitFor(async () => srv.sockets[1].gone, 5000, 'socket closed');
+        } finally {
+            srv.stop();
+        }
+    });
+
+    it('nodeRedConnection keeps the socket when the user node restarts, and closes it when the node moves or goes', async (t) => {
+        if (!red) return t.skip('Node-RED not found');
+        const srv = await tcpServer();
+        const cfg = [{ id: 'cc1', type: 'nru-test-a-conncfg', port: srv.port }, { id: 'cc2', type: 'nru-test-a-conncfg', port: srv.port }];
+        const user = (name, client) => ({ id: 'cu1', type: 'nru-test-a-conn', name, client, x: 100, y: 100 });
+        try {
+            await red.request('POST', '/nru-test-a/reset');
+            await red.deploy(flows('conn2', true, { extra: [...cfg, user('a', 'cc1')] }));
+            await waitFor(async () => readyCount(await stats(), 'cu1') === 1, 5000, 'first connection');
+
+            // Modified-nodes deploy: only cu1 restarts. It gets 'ready' at once from the open socket.
+            await red.deploy(flows('conn2', true, { extra: [...cfg, user('b', 'cc1')] }), 'nodes');
+            await waitFor(async () => readyCount(await stats(), 'cu1') === 2, 5000, 'restarted node');
+            await sleep(300);
+            assert.equal(srv.sockets.length, 1, 'the restart opened a new socket');
+            assert.ok(!srv.sockets[0].gone, 'the restart closed the socket');
+            assert.deepEqual((await stats()).conn.cu1, ['connecting', 'ready', 'ready']);
+
+            // cu1 moves to cc2: cc1 has no holder at flows:started and closes its socket
+            await red.deploy(flows('conn2', true, { extra: [...cfg, user('b', 'cc2')] }), 'nodes');
+            await waitFor(async () => srv.sockets[0].gone && srv.sockets.length === 2, 5000, 'socket of cc1 closed');
+            await sleep(300);
+            assert.ok(!srv.sockets[1].gone, 'the socket of cc2 is open');
+
+            // The deploy removes cu1: cc2 has no holder at flows:started and closes its socket
+            await red.deploy(flows('conn2', true, { extra: cfg }), 'nodes');
+            await waitFor(async () => srv.sockets[1].gone, 5000, 'socket of cc2 closed');
+        } finally {
+            srv.stop();
+        }
     });
 });

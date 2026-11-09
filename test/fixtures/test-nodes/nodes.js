@@ -3,6 +3,7 @@
 // Test nodes. The test copies this package (with its own copy of the library
 // in ./lib) into a scratch Node-RED userDir, one time for each package name.
 
+const net = require('net');
 const path = require('path');
 const lib = (file) => require(path.join(__dirname, 'lib', file));
 const { NodeRedNodeBase } = lib('node-red-base/NodeRedNodeBase.js');
@@ -12,12 +13,13 @@ const { nodeRedPubsubBus, getBus } = lib('node-red-pubsub-bus/NodeRedPubsubBus.j
 const { nodeRedEditorComms } = lib('node-red-editorcomms/EditorCommsBackend.js');
 const { nodeRedPopup } = lib('node-red-popup/NodeRedPopupBackend.js');
 const { nodeRedSingleton } = lib('node-red-singleton/NodeRedSingletonBackend.js');
+const { nodeRedConnection } = lib('node-red-connection/NodeRedConnection.js');
 
 const name = require('./package.json').name;
 
 module.exports = function (RED) {
     let stats;
-    const reset = () => { stats = { processed: {}, got: {}, starts: {}, comms: {}, inputs: {}, status: {}, seen: {}, defaults: {}, pubsub: {}, pings: {}, polled: {}, cred: {}, initError: {}, exits: {}, answers: {}, rejects: {}, caught: {}, after: {}, afterThrow: {}, handlerData: {}, stub: {} }; };
+    const reset = () => { stats = { processed: {}, got: {}, starts: {}, comms: {}, inputs: {}, status: {}, seen: {}, defaults: {}, pubsub: {}, pings: {}, polled: {}, cred: {}, initError: {}, exits: {}, answers: {}, rejects: {}, caught: {}, after: {}, afterThrow: {}, handlerData: {}, stub: {}, conn: {} }; };
     const record = (group, id, value) => { (stats[group][id] ??= []).push(value); };
     reset();
 
@@ -109,6 +111,23 @@ module.exports = function (RED) {
         node.nodeRedEditorComms.subscribe('ping', () => record('comms', node.id, 1));
         node.nodeRedEditorComms.subscribe('double', async (n) => n * 2);
         node.nodeRedEditorComms.subscribe('fail', async () => { throw new Error('async fail'); });
+    })(RED);
+
+    // TCP client config node that owns the connection, and a user node that records its states
+    NodeRedNodeBase.createNode(name + '-conncfg', [nodeRedConnection], (RED, node, config) => {
+        node.conn = node.nodeRedConnection.manage({
+            open: (lost) => new Promise((resolve, reject) => {
+                const socket = net.connect(Number(config.port), '127.0.0.1');
+                socket.on('error', reject);
+                socket.on('close', () => lost(new Error('connection closed')));
+                socket.once('connect', () => resolve(socket));
+            }),
+            close: (socket) => { socket.destroy(); },
+            backoff: { min: 20, max: 100 }
+        });
+    })(RED);
+    NodeRedNodeBase.createNode(name + '-conn', [], (RED, node, config) => {
+        RED.nodes.getNode(config.client).conn.acquire(node, (state) => record('conn', node.id, state));
     })(RED);
 
     NodeRedNodeBase.createNode(name + '-ui', [nodeRedPopup, nodeRedSingleton], () => {})(RED);
