@@ -17,7 +17,7 @@ const name = require('./package.json').name;
 
 module.exports = function (RED) {
     let stats;
-    const reset = () => { stats = { processed: {}, got: {}, starts: {}, comms: {}, inputs: {}, status: {}, seen: {}, defaults: {}, pubsub: {}, pings: {}, polled: {}, cred: {}, initError: {}, exits: {}, answers: {}, rejects: {}, caught: {}, after: {}, stub: {} }; };
+    const reset = () => { stats = { processed: {}, got: {}, starts: {}, comms: {}, inputs: {}, status: {}, seen: {}, defaults: {}, pubsub: {}, pings: {}, polled: {}, cred: {}, initError: {}, exits: {}, answers: {}, rejects: {}, caught: {}, after: {}, afterThrow: {}, handlerData: {}, stub: {} }; };
     const record = (group, id, value) => { (stats[group][id] ??= []).push(value); };
     reset();
 
@@ -62,8 +62,10 @@ module.exports = function (RED) {
         const worker = node.nodeRedWorker.init(path.join(__dirname, 'req-worker.js'));
         worker.subscribe('boom', () => { throw new Error('handler boom'); });
         worker.subscribe('boom', () => record('after', node.id, 1));
+        worker.subscribe('handler-data', (data) => record('handlerData', node.id, data));
+        worker.subscribe('after-throw', () => record('afterThrow', node.id, 1));
         node.on('input', (msg, send, done) => {
-            if (msg.topic === 'crash' || msg.topic === 'emit') { worker.publish(msg.topic); return done(); }
+            if (['crash', 'emit', 'throw', 'throw-data'].includes(msg.topic)) { worker.publish(msg.topic, msg.payload); return done(); }
             worker.request(msg.topic, msg.payload, [], { timeout: msg.timeout }).then(
                 (answer) => { record('answers', node.id, [msg.payload, answer]); done(); },
                 (err) => { record('rejects', node.id, err.message); done(err); });

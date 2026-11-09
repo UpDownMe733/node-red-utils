@@ -184,6 +184,11 @@ class NodeRedWorker extends Worker {
             this.terminate();
         });
 
+        // A subscribe handler in the worker failed (see handlerError in NodeRedWorkerRuntime.js)
+        this.subscribe('_handlerError', ({ type, message }) => {
+            this.thisNode.error(`worker message handler for '${type}' failed: ${message}`, {});
+        });
+
         // The answer to a request(): a result, or an error as { name, message }
         this.subscribe('_reply', ({ requestId, result, error }) => {
             const request = this._requests.get(requestId);

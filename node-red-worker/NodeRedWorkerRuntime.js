@@ -196,28 +196,24 @@ class Connection extends Object {
     async _dispatch(message) {
         // Other users of the port (e.g. the pubsub proxy) send messages without a type
         if (typeof message?.type !== 'string') return;
+        const { baseObject, basePortsGroup, portIndex, connectionIndex } = this.trace;
         // A request() from the main thread goes to its worker.handle() handler only
-        if (message.requestId !== undefined) return this.trace.baseObject._answer(this, message);
-        try {
-            const { baseObject, basePortsGroup, portIndex, connectionIndex } = this.trace;
-            const nodeId = baseObject.nodeId;
-            const receiverTrace = { nodeId, basePortsGroup, portIndex, connectionIndex };
-
-            const { type, data, senderTrace } = message;
-            const callHandlers = async (subscriberMap) => {
-                const handlers = subscriberMap.get(type) || [];
-                const defaultHandlers = isInternalType(type) ? [] : subscriberMap.get('default') || [];
-
-                for (const handler of [...handlers, ...defaultHandlers]) {
-                    await Promise.resolve(handler(data, senderTrace, receiverTrace, type));
+        if (message.requestId !== undefined) return baseObject._answer(this, message);
+        const receiverTrace = { nodeId: baseObject.nodeId, basePortsGroup, portIndex, connectionIndex };
+        const { type, data, senderTrace } = message;
+        // The handlers at the port group, port and connection levels, in this order.
+        // A handler that fails goes to worker.handlerError(); the next handlers still run.
+        for (const subscriberMap of [baseObject[basePortsGroup]._subscribers,
+            baseObject[basePortsGroup][portIndex]._subscribers, this._subscribers]) {
+            const handlers = subscriberMap.get(type) || [];
+            const defaultHandlers = isInternalType(type) ? [] : subscriberMap.get('default') || [];
+            for (const handler of [...handlers, ...defaultHandlers]) {
+                try {
+                    await handler(data, senderTrace, receiverTrace, type);
+                } catch (error) {
+                    baseObject.handlerError(error, type, data);
                 }
-            };
-            // Call subscribers at different levels
-            await callHandlers(baseObject[basePortsGroup]._subscribers);
-            await callHandlers(baseObject[basePortsGroup][portIndex]._subscribers);
-            await callHandlers(this._subscribers);
-        } catch (error) {
-            console.error('Error handling message:', error);
+            }
         }
     }
 
@@ -588,6 +584,18 @@ class NodeRedWorkerRuntime {
             // For example a throw in the handler, or an answer that cannot be cloned
             reply({ error: { name: (error && error.name) || 'Error', message: (error && error.message) || String(error) } });
         }
+    }
+
+    /**
+     * Reports a throw (or a rejected Promise) of a subscribe handler in the worker.
+     * The default sends it to the main thread, where the node logs it with node.error.
+     * A worker file can replace it: worker.handlerError = (error, type, data) => { ... }.
+     * @param {*} error - The value that the handler threw
+     * @param {string} type - The message type of the handler
+     * @param {*} data - The data of the message that the handler got
+     */
+    handlerError(error, type, data) {
+        this.parentPorts.publish('_handlerError', { type, message: (error && error.message) || String(error) });
     }
 
     _setupStandardSubscriptions() {

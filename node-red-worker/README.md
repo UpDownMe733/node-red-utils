@@ -179,7 +179,13 @@ The worker is not restarted. Its wires to other workers are closed. A Full deplo
 
 When a redeploy or a delete closes the node, the pending requests reject with `worker request ended: the node closed`.
 
-A throw inside a `subscribe` handler in the worker is different: the runtime catches it and logs it with `console.error`, and the worker keeps running. A throw inside a `handle` handler goes back to the caller of `request()`.
+A throw inside a `subscribe` handler in the worker is different: the runtime catches it and calls `worker.handlerError(error, type, data)`, and the worker keeps running. The other handlers for the same message still run. The default `handlerError` sends the error to the node, which logs `worker message handler for '<type>' failed: <message>` with `node.error`, the same text as for a main-thread handler. A Catch node gets it. A worker file can replace it, for example to add its own text. `data` is the data of the message that the handler got.
+
+```js
+worker.handlerError = (error, type, data) => worker.parentPorts.publish('problem', `${type}: ${error.message}`);
+```
+
+A throw inside a `handle` handler goes back to the caller of `request()`.
 
 `publish()` and `request()` use the structured clone algorithm. Data that cannot be cloned, such as a function or an object that contains a function, makes `publish()` throw a `DataCloneError` at once, and makes `request()` reject with it. An answer from `handle()` that cannot be cloned rejects the request.
 
@@ -225,6 +231,8 @@ On the main thread, `request(type, data, transferList)` and `publish(type, data,
 Your worker file exports `function (worker, data)` (see [Worker file](#worker-file)).
 
 `worker.handle(type, handler)`: answer the main thread's `request(type, ...)`. `handler(data, transferList)` returns the answer or a Promise for it. For `transferList`, see [Big results](#big-results). One handler for each type; a second `handle()` for the same type throws.
+
+`worker.handlerError(error, type, data)`: the runtime calls it when a `subscribe` handler throws or returns a promise that rejects. `data` is the data of the message. Set your own function to replace the default. See [Errors](#errors).
 
 `worker` has three port groups:
 

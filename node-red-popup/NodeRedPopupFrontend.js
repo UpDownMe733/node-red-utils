@@ -145,6 +145,10 @@ if (!window.popupInited) {
     const MIN_WIDTH = 100, MIN_HEIGHT = 50;
     // Where a popup sits under its node until the user moves it
     const DEFAULT_X = 0, DEFAULT_Y = 50;
+    // Look of the card: the radius of the corners, the height of the status bar, and the space
+    // at the right of the status bar that the text must not use (move dots and resize lines)
+    let clipCount = 0;
+    const CORNER = 8, STATUS_HEIGHT = 20, STATUS_TEXT_MARGIN = 48;
     const warnedTypes = new Set();
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
     const SVG_NS = "http://www.w3.org/2000/svg";
@@ -183,103 +187,92 @@ if (!window.popupInited) {
         const autoCloseTime = config.autoCloseTime;
 
         const svgElement = document.getElementById(node.id);
-        let group = document.createElementNS("http://www.w3.org/2000/svg", "g");
-        group.setAttribute("id", "nru_popup." + node.id + ".group");
+        const accent = node._def.color || '#999';       // the popup wears the color of its node
+        const lineColor = `color-mix(in srgb, ${accent} 65%, #000)`;     // light node colors would not show on the canvas
+        const theme = (name, fallback) => `var(--red-ui-${name}, ${fallback})`;     // follows the light and dark editor themes
+        const make = (tag, attrs = {}) => {
+            const element = document.createElementNS(SVG_NS, tag);
+            for (const [name, value] of Object.entries(attrs)) element.setAttribute(name, value);
+            return element;
+        };
+
+        let group = make("g", { id: "nru_popup." + node.id + ".group" });
         group.style.display = (window.popupStates[node.id] === 'open') ? 'block' : 'none';
-        group.style.filter = 'drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3))';
+        group.style.filter = 'drop-shadow(0 1px 2px rgba(0, 0, 0, 0.25)) drop-shadow(0 8px 14px rgba(0, 0, 0, 0.2))';
 
         // The body holds everything that is drawn. It unfurls from the node on open, so the
         // group keeps its own transform and display.
-        const frame = document.createElementNS(SVG_NS, "g");   // the position of the popup
-        frame.setAttribute("transform", `translate(${config.x}, ${config.y})`);
-        const body = document.createElementNS(SVG_NS, "g");
+        const frame = make("g", { transform: `translate(${config.x}, ${config.y})` });   // the position of the popup
+        const clipId = 'nru_popup_clip_' + (clipCount++);     // not made from the node id: an id with a space would break url()
+        const body = make("g", { "clip-path": `url(#${clipId})` });     // rounded corners
         body.style.transformOrigin = (parseFloat(rectElement.getAttribute('width')) / 2) + "px 0px";
 
-        // Create base elements
-        let rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-        rect.setAttribute("id", "nru_popup." + node.id + ".rect");
-        rect.setAttribute("x", "0");
-        rect.setAttribute("y", "0");
-        rect.setAttribute("width", width);
-        rect.setAttribute("height", height);
-        rect.setAttribute("fill", "#f1f1f1");
-        rect.setAttribute("stroke", "#d4d4d4");
-        rect.setAttribute("stroke-width", "1");
-        rect.setAttribute("rx", "0");
+        const clipRect = make("rect", { x: 0, y: 0, rx: CORNER });
+        const clipPath = make("clipPath", { id: clipId });
+        clipPath.appendChild(clipRect);
 
-        let foreignObject = document.createElementNS("http://www.w3.org/2000/svg", "foreignObject");
-        foreignObject.setAttribute("id", "nru_popup." + node.id + ".foreignObject");
+        const rect = make("rect", { id: "nru_popup." + node.id + ".rect", x: 0, y: 0, rx: CORNER });
+        rect.style.fill = theme('secondary-background', '#fff');
+        const accentBar = make("rect", { x: 0, y: 0, height: 4 });
+        accentBar.style.fill = lineColor;
+        const outline = make("rect", { x: 0.5, y: 0.5, rx: CORNER, fill: "none" });
+        outline.style.stroke = theme('primary-border-color', '#d4d4d4');
+        outline.style.pointerEvents = 'none';    // else it takes the mouse from the status bar
+
+        const foreignObject = make("foreignObject", { id: "nru_popup." + node.id + ".foreignObject", x: 6, y: 6 });
         const sourceText = svgElement.querySelector('.red-ui-flow-node-status-label');
         for (const attr of sourceText.attributes) {
             foreignObject.setAttribute(attr.name, attr.value)
         };
         foreignObject.setAttribute("x", "6");
         foreignObject.setAttribute("y", "6");
-        foreignObject.setAttribute("width", width - 12);
-        foreignObject.setAttribute("height", height - 20 - 12); // Leave room for status bar
 
         let divElement = document.createElement("div");
         divElement.setAttribute("id", "nru_popup." + node.id + ".div");
-        divElement.style.width = (width - 12) + "px";
-        divElement.style.height = (height - 20 - 12) + "px";
         divElement.style.margin = "0";
         divElement.style.overflow = "auto";
         divElement.style.boxSizing = "border-box";
+        divElement.style.color = theme('primary-text-color', '#222');
         foreignObject.appendChild(divElement);
 
-        // Create resize handle as a small path in bottom right
-        const resizeHandle = document.createElementNS("http://www.w3.org/2000/svg", "path");
-        resizeHandle.setAttribute("id", "nru_popup." + node.id + ".resizeHandle");
-        resizeHandle.setAttribute("d", `M${width - 6},${height} l6,-6 l0,6 z`);
-        resizeHandle.setAttribute("fill", "#b3b3b3 ");
-        resizeHandle.setAttribute("stroke", "#b3b3b3 ");
-        resizeHandle.setAttribute("style", "cursor: se-resize");
-
-        // Create status bar rectangle
-        let statusBar = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-        statusBar.setAttribute("id", "nru_popup." + node.id + ".statusBar");
-        statusBar.setAttribute("x", "0");
-        statusBar.setAttribute("y", (parseInt(rect.getAttribute("height")) - 20).toString());
-        statusBar.setAttribute("width", width);
-        statusBar.setAttribute("height", "20");  // Height of status bar
-        statusBar.setAttribute("fill", "#e3e3e3");  // Light gray background
-        statusBar.setAttribute("stroke", "#d4d4d4");
-        statusBar.setAttribute("stroke-width", "1");
+        // The status bar is the handle to move the popup. Dots say so.
+        const statusBar = make("rect", { id: "nru_popup." + node.id + ".statusBar", x: 0, height: STATUS_HEIGHT });
+        statusBar.style.fill = theme('secondary-background-hover', '#e8e8e8');
+        statusBar.style.stroke = theme('primary-border-color', '#d4d4d4');
         statusBar.style.cursor = 'grab';
+        const moveDots = make("path", { d: "M0,-4 h0 M0,0 h0 M0,4 h0 M5,-4 h0 M5,0 h0 M5,4 h0", "stroke-width": 2, "stroke-linecap": "round" });
+        moveDots.style.stroke = theme('secondary-text-color', '#555');
+        moveDots.style.pointerEvents = 'none';
 
-        // Create text element for node info
-        let statusText = document.createElementNS("http://www.w3.org/2000/svg", "text");
-        statusText.setAttribute("id", "nru_popup." + node.id + ".statusText");
-        statusText.setAttribute("x", "6");
-        statusText.setAttribute("y", (parseInt(rect.getAttribute("height")) - 6).toString());
-        statusText.setAttribute("font-family", "Arial, Helvetica, sans-serif");                
-        statusText.setAttribute("font-size", "10");
-        statusText.setAttribute("stroke-width", "0.2"); 
-        statusText.setAttribute("fill", "#222");
+        // The resize handle is a square that catches the mouse; the lines on it only show where it is
+        const resizeHandle = make("rect", { id: "nru_popup." + node.id + ".resizeHandle", width: 24, height: 24, fill: "transparent" });
+        resizeHandle.style.stroke = 'none';
+        resizeHandle.style.cursor = 'se-resize';
+        const resizeLines = make("path", { "stroke-width": 1.5, "stroke-linecap": "round" });
+        resizeLines.style.stroke = theme('secondary-text-color', '#555');
+        resizeLines.style.pointerEvents = 'none';
+
+        const statusText = make("text", { id: "nru_popup." + node.id + ".statusText", x: 8, "font-family": "Arial, Helvetica, sans-serif", "font-size": 10 });
+        statusText.style.fill = theme('secondary-text-color', '#555');
         statusText.style.pointerEvents = 'none';   // so that a drag on the text moves the popup
         statusText.textContent = '';
         statusText.fullText = '';
         statusText.setStatusText = function( text ) {
-            const width = parseInt(rect.getAttribute('width'));
             statusText.textContent = text;
             statusText.fullText = text;
-            sizeTextToFit( statusText, width);
+            sizeTextToFit( statusText, parseInt(rect.getAttribute('width')) - STATUS_TEXT_MARGIN );
         };
 
-        // Add elements to group
-        body.appendChild(rect);
-        body.appendChild(statusBar);
-        body.appendChild(statusText);
-        body.appendChild(foreignObject);
-        body.appendChild(resizeHandle);
+        body.append(rect, accentBar, statusBar, moveDots, statusText, foreignObject, outline, resizeLines, resizeHandle);
         frame.appendChild(body);
 
-        // A line that ties the popup to its node, wherever the user puts it
-        const tether = document.createElementNS(SVG_NS, "line");
-        tether.setAttribute("stroke", "#8c8c8c");
-        tether.setAttribute("stroke-dasharray", "3 3");
-        tether.style.pointerEvents = 'none';
-        group.append(tether, frame);
+        // A line that ties the popup to its node, wherever the user puts it, and a dot where it starts
+        const tether = make("line", { "stroke-dasharray": "3 3", "stroke-width": 1.5 });
+        tether.style.stroke = lineColor;
+        const anchor = make("circle", { r: 3.5 });
+        anchor.style.fill = lineColor;
+        tether.style.pointerEvents = anchor.style.pointerEvents = 'none';
+        group.append(clipPath, tether, anchor, frame);
         svgElement.appendChild(group);
 
         // The tether runs from the bottom middle of the node to the nearest point of the popup
@@ -293,8 +286,30 @@ if (!window.popupInited) {
             tether.setAttribute("y1", nodeBottom);
             tether.setAttribute("x2", Math.min(Math.max(nodeMidX, popupX), popupX + popupWidth));
             tether.setAttribute("y2", Math.min(Math.max(nodeBottom, popupY), popupY + popupHeight));
+            anchor.setAttribute("cx", nodeMidX);
+            anchor.setAttribute("cy", nodeBottom);
         };
-        placeTether();
+
+        // Put every part at the right place for a popup of this size
+        const layout = (w, h) => {
+            for (const element of [rect, clipRect, statusBar]) element.setAttribute('width', w);
+            for (const element of [rect, clipRect]) element.setAttribute('height', h);
+            outline.setAttribute('width', w - 1);
+            outline.setAttribute('height', h - 1);
+            accentBar.setAttribute('width', w);
+            statusBar.setAttribute('y', h - STATUS_HEIGHT);
+            statusText.setAttribute('y', h - 6);
+            moveDots.setAttribute('transform', `translate(${w - 40}, ${h - STATUS_HEIGHT / 2})`);
+            foreignObject.setAttribute('width', w - 12);
+            foreignObject.setAttribute('height', h - STATUS_HEIGHT - 12);   // total height - status bar - top and bottom padding
+            divElement.style.width = (w - 12) + 'px';
+            divElement.style.height = (h - STATUS_HEIGHT - 12) + 'px';
+            resizeHandle.setAttribute('x', w - 24);
+            resizeHandle.setAttribute('y', h - 24);
+            resizeLines.setAttribute('d', [6, 10, 14].map(k => `M${w - 4},${h - k} L${w - k},${h - 4}`).join(' '));
+            placeTether();
+        };
+        layout(width, height);
 
         // The size and position go into the node, so they are saved with the flow
         const saveConfig = () => {
@@ -397,18 +412,8 @@ if (!window.popupInited) {
             const {dx, dy} = {dx: (event.clientX - startX) / scale, dy: (event.clientY - startY) / scale};
             newWidth = Math.max(MIN_WIDTH, startWidth + dx);
             newHeight = Math.max(MIN_HEIGHT, startHeight + dy);
-            statusBar.setAttribute('width', newWidth);
-            statusBar.setAttribute("y", (newHeight - 20).toString());
-            statusText.setAttribute("y", (newHeight - 6).toString());
-            sizeTextToFit( statusText, newWidth );
-            rect.setAttribute('width', newWidth);
-            rect.setAttribute('height', newHeight);
-            foreignObject.setAttribute('width', newWidth - 12);
-            foreignObject.setAttribute('height', newHeight - 20 - 6 - 6);  // total height - statusbar height - top padding - bottom padding
-            divElement.style.width = (newWidth - 12) + 'px';
-            divElement.style.height = (newHeight - 20 - 12) + 'px';
-            resizeHandle.setAttribute("d", `M${newWidth - 6},${newHeight} l6,-6 l0,6 z`);
-            placeTether();
+            layout(newWidth, newHeight);
+            sizeTextToFit( statusText, newWidth - STATUS_TEXT_MARGIN );
         }
         
         const stopResize = () => {

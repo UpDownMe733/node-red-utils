@@ -106,6 +106,25 @@ describe('worker.request() in a real Node-RED', { timeout: 60000 }, () => {
         assert.deepEqual(s.caught.rr, ["worker message handler for 'boom' failed: handler boom"]);
     });
 
+    it('a worker handler that throws is reported on the node, the next handler runs and the worker keeps running', async (t) => {
+        if (!red) return t.skip('Node-RED not found');
+        await deploy('worker-handler-error');
+        await trigger({ topic: 'throw' });
+        const s = await until(s => s.afterThrow.rq && s.caught.rr, 'second handler and Catch node');
+        assert.deepEqual(s.afterThrow.rq, [1]);
+        assert.deepEqual(s.caught.rr, ["worker message handler for 'throw' failed: worker handler boom"]);
+        await trigger({ topic: 'double', payload: '2' });
+        await until(s => s.answers.rq, 'answer after the throw');
+    });
+
+    it('handlerError gets the data of the message that the handler got', async (t) => {
+        if (!red) return t.skip('Node-RED not found');
+        await deploy('worker-handler-error');
+        await trigger({ topic: 'throw-data', payload: '"the data"' });
+        const s = await until(s => s.handlerData.rq, 'data in handlerError');
+        assert.deepEqual(s.handlerData.rq, ['the data']);
+    });
+
     it('request(), on() and terminate() before init() throw a clear error', async (t) => {
         if (!red) return t.skip('Node-RED not found');
         await deploy('stub', [{ id: 'st', type: 'nru-test-a-req', name: 'stub' }]);
