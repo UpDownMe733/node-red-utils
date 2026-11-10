@@ -184,3 +184,5 @@ Issues and pull requests are welcome on [GitHub](https://github.com/UpDownMe733/
 ## License
 
 [Apache-2.0](./LICENSE)
+
+<small>[Sponsor this project](https://github.com/sponsors/UpDownMe733)</small>
