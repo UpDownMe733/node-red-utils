@@ -65,6 +65,9 @@
 	"devDependencies": {
 		"node-red": "^5.0.9"
 	},
+	"overrides": {
+		"multer": "^2.5.0"
+	},
 	"publishConfig": {
 		"access": "public"
 	}
