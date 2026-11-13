@@ -120,6 +120,13 @@ if (!window.popupInited) {
 
     window.popupInited = true;
     window.popupStates = {};
+    // Popups that are open stay open after a browser refresh. The ids are kept in the browser's local storage.
+    // Popups that close by themselves (autoCloseTime) are not kept.
+    const OPEN_KEY = 'nru_popupOpen';
+    const openIds = () => JSON.parse(RED.settings.getLocal(OPEN_KEY) || '[]');
+    const keepOpen = (ids) => RED.settings.setLocal(OPEN_KEY, JSON.stringify(ids));
+    for (const id of openIds()) window.popupStates[id] = 'open';
+    RED.events.on('flows:loaded', () => keepOpen(openIds().filter(id => RED.nodes.node(id))));   // forget deleted nodes
     window.popupEventTracker = new window.DOMEventTracker();
 
     const removePopups = async (workspace) => {
@@ -342,6 +349,8 @@ if (!window.popupInited) {
         const setOpen = (open) => {
             bodyAnimation?.cancel();
             window.popupStates[node.id] = open ? 'open' : 'closed';
+            const ids = openIds().filter(id => id !== node.id);
+            keepOpen(open && !autoCloseTime ? [...ids, node.id] : ids);
             const duration = reduceMotion.matches ? 0 : (open ? 260 : 120);
             if (open) {
                 group.style.display = 'block';

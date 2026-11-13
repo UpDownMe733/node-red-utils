@@ -96,6 +96,8 @@ The content area (`nru_popup.<nodeId>.div`) is 12 px narrower and 32 px lower th
 
 The user drags the status bar to move a popup, and drags the bottom right corner to resize it. Dots on the status bar show that it moves. A dashed line ties the popup to its node, wherever it is. The new position or size goes into the node's `nru_popupConfig`, so it is saved with the flow. A move or resize follows the zoom of the canvas.
 
+A popup that is open stays open after a browser refresh. The browser keeps the ids of the open popups in its local storage (key `nru_popupOpen`), so this applies to that browser only. A popup with an `autoCloseTime` more than 0 starts closed.
+
 ## Elements
 
 Each popup creates elements with these ids:
