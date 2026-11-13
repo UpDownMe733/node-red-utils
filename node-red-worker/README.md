@@ -2,6 +2,10 @@
 
 Run a node's heavy work in a worker thread so it does not block the Node-RED event loop. Worker nodes that are wired together send messages to each other directly, thread to thread.
 
+![Top layer: the Node-RED flow camera, decode, detect, result. Bottom layer: a worker thread for decode and for detect, each joined to its node by parentPorts, and joined to each other by outputPorts to inputPorts, under the wire between the two nodes](../images/worker-pipes.png)
+
+The flow is the top layer. Each worker node has one thread on the layer below. A wire between two worker nodes is also a direct connection between their two threads.
+
 ## Usage
 
 `hash-node.js`:
@@ -135,7 +139,13 @@ worker.subscribe('progress', (p) => thisNode.status({ text: `${p} %` }));
 
 ## Worker file
 
-The worker file runs in its own thread. It has no `RED`, no node object, no flow or global context. It talks to the node only through messages. Objects arrive as structured clones (a `Buffer` arrives as a `Uint8Array`). `require` your own modules in the worker file.
+Write the worker file from the point of view of the worker. The worker is a separate thread, isolated from Node-RED: it has no `RED`, no node object, no flow or global context, and it cannot see the flow, the other nodes or the wires. Its only connection to the world is a set of message pipes, and the mixin creates them for you:
+
+- `worker.parentPorts`: a pipe to its own node on the main thread
+- `worker.inputPorts`: a pipe from each upstream worker node
+- `worker.outputPorts`: a pipe to each downstream worker node
+
+The worker listens on a pipe with `subscribe` and sends on it with `publish`. It answers a `request()` from its node with `handle`. Objects arrive as structured clones (a `Buffer` arrives as a `Uint8Array`). `require` your own modules in the worker file.
 
 The worker file exports one function, `(worker, data)`. CommonJS and ES modules both work:
 
