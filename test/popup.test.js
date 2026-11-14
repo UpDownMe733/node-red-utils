@@ -457,6 +457,26 @@ describe('popup editor script', () => {
             assert.equal(part(nodes[0], 'group').nru_nodeElement, newElement);
         });
 
+        it('stops the auto close timer of a popup that a deploy removes', async () => {
+            const { nodes, part, events, window } = await load({ nodes: [{ config: { autoCloseTime: 200 } }] });
+            await openByClick(part, nodes[0]);          // opens at 250 ms; the timer closes it at 450 ms
+            for (const handler of events['deploy']) await handler();
+            await new Promise(resolve => setTimeout(resolve, 300));
+            assert.equal(window.popupStates.n1, 'open', 'the timer of the removed popup closed it');
+            assert.equal(part(nodes[0], 'group').style.display, 'block');
+        });
+
+        it('stops the click timer of a popup that nodes:remove removes', async () => {
+            const { nodes, part, events, window, store } = await load();
+            const nodeRect = part(nodes[0], 'group').nru_nodeElement.querySelector('rect');
+            nodeRect.dispatch('mousedown');
+            nodeRect.dispatch('click');                 // the popup would open at 250 ms
+            for (const handler of events['nodes:remove']) handler(nodes[0]);
+            await new Promise(resolve => setTimeout(resolve, 300));
+            assert.equal(window.popupStates.n1, undefined);
+            assert.equal(store.nru_popupOpen, undefined);
+        });
+
         it('puts a popup that stays open after a refresh in the layer', async () => {
             const { nodes, part, document } = await load({ local: { nru_popupOpen: '["n1"]' } });
             assert.equal(part(nodes[0], 'group').parentNode, layerOf(document));

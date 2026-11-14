@@ -129,9 +129,10 @@ if (!window.popupInited) {
     RED.events.on('flows:loaded', () => keepOpen(openIds().filter(id => RED.nodes.node(id))));   // forget deleted nodes
     window.popupEventTracker = new window.DOMEventTracker();
 
-    // Stop following the node and remove the popup
+    // Stop following the node, stop the timers and the animations of the popup, and remove the popup
     const removePopupGroup = (group) => {
         group.nru_observer?.disconnect();
+        group.nru_dispose?.();
         group.remove();
     };
 
@@ -502,6 +503,13 @@ if (!window.popupInited) {
 
         let clickTimer = null;
         let autoCloseTimeout = null;
+        // A removed popup must not change the state of its node later. A new popup of the node can be open.
+        group.nru_dispose = () => {
+            clearTimeout(clickTimer);
+            clearTimeout(autoCloseTimeout);
+            bodyAnimation?.cancel();
+            for (const animation of wireAnimations) animation.cancel();
+        };
         let mouseDownX = 0, mouseDownY = 0;
         const DRAG_THRESHOLD = 3;
         const handleRectElementMouseDown = (event) => {
