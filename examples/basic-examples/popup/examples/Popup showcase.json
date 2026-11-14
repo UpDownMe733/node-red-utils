@@ -1,0 +1,100 @@
+[
+    {
+        "id": "a1b2c3d4e5f60001",
+        "type": "tab",
+        "label": "Popup showcase",
+        "disabled": false,
+        "info": ""
+    },
+    {
+        "id": "a1b2c3d4e5f60002",
+        "type": "comment",
+        "z": "a1b2c3d4e5f60001",
+        "name": "Click a node to open its popup. Drag the coloured title bar to move it, × closes it.",
+        "info": "",
+        "x": 360,
+        "y": 40,
+        "wires": []
+    },
+    {
+        "id": "a1b2c3d4e5f60011",
+        "type": "inject",
+        "z": "a1b2c3d4e5f60001",
+        "name": "every 1 s",
+        "props": [{ "p": "payload" }],
+        "repeat": "1",
+        "crontab": "",
+        "once": true,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "$round(20 + $random() * 5, 1)",
+        "payloadType": "jsonata",
+        "x": 170,
+        "y": 120,
+        "wires": [["a1b2c3d4e5f60021"]]
+    },
+    {
+        "id": "a1b2c3d4e5f60012",
+        "type": "inject",
+        "z": "a1b2c3d4e5f60001",
+        "name": "every 2 s",
+        "props": [{ "p": "payload" }],
+        "repeat": "2",
+        "crontab": "",
+        "once": true,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "$round(1000 + $random() * 30, 1)",
+        "payloadType": "jsonata",
+        "x": 170,
+        "y": 340,
+        "wires": [["a1b2c3d4e5f60022"]]
+    },
+    {
+        "id": "a1b2c3d4e5f60013",
+        "type": "inject",
+        "z": "a1b2c3d4e5f60001",
+        "name": "every 3 s",
+        "props": [{ "p": "payload" }],
+        "repeat": "3",
+        "crontab": "",
+        "once": true,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "$random() > 0.7 ? \"HIGH\" : \"ok\"",
+        "payloadType": "jsonata",
+        "x": 170,
+        "y": 620,
+        "wires": [["a1b2c3d4e5f60023"]]
+    },
+    {
+        "id": "a1b2c3d4e5f60021",
+        "type": "popup-node",
+        "z": "a1b2c3d4e5f60001",
+        "name": "Temperature",
+        "nru_popupConfig": { "width": 200, "height": 110, "autoCloseTime": 0, "x": -170, "y": 70 },
+        "x": 440,
+        "y": 120,
+        "wires": [[]]
+    },
+    {
+        "id": "a1b2c3d4e5f60022",
+        "type": "popup-node",
+        "z": "a1b2c3d4e5f60001",
+        "name": "Pressure",
+        "nru_popupConfig": { "width": 200, "height": 110, "autoCloseTime": 0, "x": 190, "y": -30 },
+        "x": 440,
+        "y": 340,
+        "wires": [[]]
+    },
+    {
+        "id": "a1b2c3d4e5f60023",
+        "type": "popup-node",
+        "z": "a1b2c3d4e5f60001",
+        "name": "Alarms",
+        "nru_popupConfig": { "width": 200, "height": 110, "autoCloseTime": 0, "x": 210, "y": -170 },
+        "x": 440,
+        "y": 620,
+        "wires": [[]]
+    }
+]

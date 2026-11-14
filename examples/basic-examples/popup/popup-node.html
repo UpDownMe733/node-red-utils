@@ -16,7 +16,13 @@
 
         nru_popupInit: function() {
             const div = document.getElementById('nru_popup.' + this.id + '.div');
-            $(div).empty().append($('<div style="padding:4px;font-size:11px;">').text('Waiting for message...'));
+            // The title bar came with this version of the popup. Without it, Node-RED serves an old copy of the script.
+            if (!document.getElementById('nru_popup.' + this.id + '.title')) {
+                $(div).text('Old NodeRedPopupFrontend.js loaded: install the local node-red-utils');
+            } else {
+                $(div).empty().append($('<div style="height:100%;display:flex;align-items:center;justify-content:center;text-align:center;font-size:11px;opacity:0.6;">')
+                    .text('Send a message to see it here'));
+            }
             this.nodeRedEditorComms.publish('getLastMessage', {}).catch(() => {});    // not deployed yet
         },
 
@@ -25,11 +31,10 @@
                 const div = document.getElementById('nru_popup.' + this.id + '.div');
                 if (div && payload) {
                     // Message data: set it with text(), never as HTML, so it cannot run script in the editor
-                    $(div).empty().append($('<div style="padding:4px;font-size:11px;">').append(
-                        $('<strong>').text('Last: '),
-                        $('<span>').text(JSON.stringify(payload.payload)),
-                        $('<br>'),
-                        $('<small>').text(payload.time)));
+                    $(div).empty().append($('<div style="height:100%;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:bold;">')
+                        .text(JSON.stringify(payload.payload)));
+                    const status = document.getElementById('nru_popup.' + this.id + '.statusText');
+                    status?.setStatusText(new Date(payload.time).toLocaleTimeString());
                 }
             }
         }
