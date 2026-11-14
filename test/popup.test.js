@@ -89,21 +89,27 @@ const load = async ({ reduceMotion = false, nodes: nodeOptions = [{}], local = {
     document.removeEventListener = FakeElement.prototype.removeEventListener.bind(document);
     document.dispatch = (type, props) => FakeElement.prototype.dispatch.call(document, type, props);
 
-    const nodes = nodeOptions.map((options, index) => {
-        const node = {
-            id: 'n' + (index + 1), z: 't1', type: 'popup-node', name: options.name ?? 'Node ' + (index + 1),
-            _def: { color: '#a6bbcf', defaults: { nru_popupConfig: { value: { width: 200, height: 120, autoCloseTime: 0, ...options.config } } } },
-        };
-        if (options.saved) node.nru_popupConfig = options.saved;
+    // Make the <g> of a node, as the editor draws it: a rect and a status label
+    const makeNodeElement = (id, transform) => {
         const nodeGroup = new FakeElement('g');
-        nodeGroup.setAttribute('id', node.id);
+        nodeGroup.setAttribute('id', id);
+        if (transform) nodeGroup.setAttribute('transform', transform);
         const nodeRect = new FakeElement('rect');
         nodeRect.setAttribute('width', 100);
         nodeRect.setAttribute('height', 30);
         const statusLabel = new FakeElement('text');
         statusLabel.setAttribute('class', 'red-ui-flow-node-status-label');
         nodeGroup.append(nodeRect, statusLabel);
-        nodeLayer.appendChild(nodeGroup);
+        return nodeGroup;
+    };
+
+    const nodes = nodeOptions.map((options, index) => {
+        const node = {
+            id: 'n' + (index + 1), z: 't1', type: 'popup-node', name: options.name ?? 'Node ' + (index + 1),
+            _def: { color: '#a6bbcf', defaults: { nru_popupConfig: { value: { width: 200, height: 120, autoCloseTime: 0, ...options.config } } } },
+        };
+        if (options.saved) node.nru_popupConfig = options.saved;
+        nodeLayer.appendChild(makeNodeElement(node.id, options.transform));
         return node;
     });
 
@@ -142,7 +148,7 @@ const load = async ({ reduceMotion = false, nodes: nodeOptions = [{}], local = {
     const part = (node, name) => document.getElementById('nru_popup.' + node.id + '.' + name);
     const wire = (node) => document.getElementById('nru_popup.' + node.id + '.group').children
         .filter(element => element.tagName === 'path');
-    return { document, root, nodeLayer, observers, nodes, store, events, labels, window, media, part, wire, reload };
+    return { document, root, nodeLayer, observers, makeNodeElement, nodes, store, events, labels, window, media, part, wire, reload };
 };
 
 describe('popup editor script', () => {
@@ -341,6 +347,121 @@ describe('popup editor script', () => {
         document.dispatch('mouseup');
         assert.equal(part(nodes[0], 'rect').getAttribute('height'), '70');
         assert.equal(nodes[0].nru_popupConfig.height, 70);
+    });
+
+    describe('popup layer', () => {
+        const layerOf = (document) => document.getElementById('nru_popup.layer');
+
+        it('puts each popup in the popup layer, directly after the node layer', async () => {
+            const { nodes, part, document, root, nodeLayer } = await load({ nodes: [{}, {}] });
+            const layer = layerOf(document);
+            assert.ok(layer);
+            assert.equal(layer.parentNode, root);
+            assert.equal(nodeLayer.nextSibling, layer);
+            for (const node of nodes) {
+                assert.equal(part(node, 'group').parentNode, layer);
+                assert.ok(!document.getElementById(node.id).children.includes(part(node, 'group')));
+            }
+        });
+
+        it('keeps the layer after the node layer when the editor re-orders or adds node elements', async () => {
+            const { nodes, part, document, nodeLayer, makeNodeElement } = await load({ nodes: [{}, {}] });
+            nodeLayer.insertBefore(document.getElementById('n2'), document.getElementById('n1'));
+            nodeLayer.appendChild(makeNodeElement('n3'));
+            const layer = layerOf(document);
+            assert.equal(nodeLayer.nextSibling, layer);
+            assert.deepEqual(layer.children, [part(nodes[0], 'group'), part(nodes[1], 'group')]);
+        });
+
+        it('takes the transform of the node and follows the node when it moves', async () => {
+            const { nodes, part, document, observers } = await load({ nodes: [{ transform: 'translate(100,200)' }] });
+            const group = part(nodes[0], 'group');
+            assert.equal(group.getAttribute('transform'), 'translate(100,200)');
+            const nodeElement = document.getElementById('n1');
+            const observer = observers.find(o => o.target === nodeElement && o.connected);
+            assert.deepEqual([...observer.options.attributeFilter], ['transform']);
+            nodeElement.setAttribute('transform', 'translate(300,50)');
+            observer.callback([]);
+            assert.equal(group.getAttribute('transform'), 'translate(300,50)');
+        });
+
+        it('puts the popup opened last at the end of the layer and does not move the node elements', async () => {
+            const { nodes, part, document, nodeLayer } = await load({ nodes: [{}, {}] });
+            const nodeOrder = [...nodeLayer.children];
+            await openByClick(part, nodes[1]);
+            await openByClick(part, nodes[0]);
+            assert.equal(layerOf(document).children.at(-1), part(nodes[0], 'group'));
+            await openByClick(part, nodes[0]);      // close n1
+            await openByClick(part, nodes[0]);      // open n1 again: it stays last
+            assert.equal(layerOf(document).children.at(-1), part(nodes[0], 'group'));
+            await openByClick(part, nodes[1]);      // close n2
+            await openByClick(part, nodes[1]);      // open n2 again: now it is last
+            assert.equal(layerOf(document).children.at(-1), part(nodes[1], 'group'));
+            assert.deepEqual(nodeLayer.children, nodeOrder);
+        });
+
+        it('removes the popup and stops the observer on nodes:remove', async () => {
+            const { nodes, part, document, events, observers } = await load({ nodes: [{}, {}] });
+            const group = part(nodes[0], 'group');
+            const observer = observers.find(o => o.target === document.getElementById('n1'));
+            for (const handler of events['nodes:remove']) handler(nodes[0]);
+            assert.equal(part(nodes[0], 'group'), null);
+            assert.equal(group.parentNode, null);
+            assert.equal(observer.connected, false);
+            assert.ok(part(nodes[1], 'group'));
+        });
+
+        it('removes the popups and stops the observers on a change of the tab', async () => {
+            const { nodes, part, document, events, observers } = await load({ nodes: [{}, {}] });
+            for (const handler of events['workspace:change']) await handler({ old: 't1', workspace: 't2' });
+            for (let i = 0; i < 5; i++) await new Promise(setImmediate);
+            for (const node of nodes) assert.equal(part(node, 'group'), null);
+            assert.deepEqual(layerOf(document).children, []);
+            assert.ok(observers.every(o => !o.connected));
+        });
+
+        it('removes a popup whose node element is gone when popups are added', async () => {
+            const { nodes, part, document, events, observers } = await load({ nodes: [{}, {}] });
+            const group = part(nodes[1], 'group');
+            const observer = observers.find(o => o.target === document.getElementById('n2'));
+            document.getElementById('n2').remove();
+            nodes.pop();        // the editor removed n2 without nodes:remove
+            for (const handler of events['deploy']) await handler();
+            assert.equal(group.parentNode, null);
+            assert.equal(observer.connected, false);
+            assert.deepEqual(layerOf(document).children, [part(nodes[0], 'group')]);
+        });
+
+        it('makes a new popup on deploy when the editor replaced the node element', async () => {
+            const { nodes, part, document, events, nodeLayer, makeNodeElement } = await load();
+            const oldGroup = part(nodes[0], 'group');
+            document.getElementById('n1').remove();
+            const newElement = nodeLayer.appendChild(makeNodeElement('n1', 'translate(5,6)'));
+            for (const handler of events['deploy']) await handler();
+            const group = part(nodes[0], 'group');
+            assert.notEqual(group, oldGroup);
+            assert.equal(group.nru_nodeElement, newElement);
+            assert.equal(group.getAttribute('transform'), 'translate(5,6)');
+            assert.deepEqual(layerOf(document).children, [group]);
+        });
+
+        it('makes a new popup when the node element is replaced and the old popup is still there', async () => {
+            const { nodes, part, document, events, nodeLayer, makeNodeElement, observers } = await load();
+            const oldGroup = part(nodes[0], 'group');
+            const oldObserver = observers.find(o => o.target === document.getElementById('n1'));
+            document.getElementById('n1').remove();
+            const newElement = nodeLayer.appendChild(makeNodeElement('n1'));
+            for (const handler of events['nodes:add']) await handler(nodes[0]);
+            assert.equal(oldGroup.parentNode, null);
+            assert.equal(oldObserver.connected, false);
+            assert.equal(part(nodes[0], 'group').nru_nodeElement, newElement);
+        });
+
+        it('puts a popup that stays open after a refresh in the layer', async () => {
+            const { nodes, part, document } = await load({ local: { nru_popupOpen: '["n1"]' } });
+            assert.equal(part(nodes[0], 'group').parentNode, layerOf(document));
+            assert.equal(part(nodes[0], 'group').style.display, 'block');
+        });
     });
 });
 
