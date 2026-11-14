@@ -25,6 +25,7 @@ class FakeElement {
     get id() { return this.attrs.get('id'); }
     get attributes() { return [...this.attrs].map(([name, value]) => ({ name, value })); }
     setAttribute(name, value) { this.attrs.set(name, String(value)); }
+    removeAttribute(name) { this.attrs.delete(name); }
     getAttribute(name) { return this.attrs.has(name) ? this.attrs.get(name) : null; }
     appendChild(child) {
         child.parentNode?.children.splice(child.parentNode.children.indexOf(child), 1);
@@ -33,6 +34,19 @@ class FakeElement {
         return child;
     }
     append(...children) { for (const child of children) this.appendChild(child); }
+    insertBefore(child, before) {
+        if (!before) return this.appendChild(child);
+        child.parentNode?.children.splice(child.parentNode.children.indexOf(child), 1);
+        child.parentNode = this;
+        this.children.splice(this.children.indexOf(before), 0, child);
+        return child;
+    }
+    get nextSibling() {
+        const siblings = this.parentNode?.children;
+        return siblings ? siblings[siblings.indexOf(this) + 1] ?? null : null;
+    }
+    // The root of the fake DOM is the only element without a parent that is connected
+    get isConnected() { let element = this; while (element.parentNode) element = element.parentNode; return element.isRoot === true; }
     remove() { this.parentNode?.children.splice(this.parentNode.children.indexOf(this), 1); this.parentNode = null; }
     *all() { for (const child of this.children) { yield child; yield* child.all(); } }
     querySelector(selector) {
@@ -58,7 +72,11 @@ class FakeElement {
 
 // Load the script with two popup nodes on tab t1. Returns the parts that the tests look at.
 const load = async ({ reduceMotion = false, nodes: nodeOptions = [{}], local = {} } = {}) => {
+    // The root plays the event layer of the editor. The node <g>s are in the node layer.
     const root = new FakeElement('svg');
+    root.isRoot = true;
+    const nodeLayer = new FakeElement('g');
+    root.appendChild(nodeLayer);
     const document = {
         createElementNS: (ns, tag) => new FakeElement(tag),
         createElement: (tag) => new FakeElement(tag),
@@ -85,7 +103,7 @@ const load = async ({ reduceMotion = false, nodes: nodeOptions = [{}], local = {
         const statusLabel = new FakeElement('text');
         statusLabel.setAttribute('class', 'red-ui-flow-node-status-label');
         nodeGroup.append(nodeRect, statusLabel);
-        root.appendChild(nodeGroup);
+        nodeLayer.appendChild(nodeGroup);
         return node;
     });
 
@@ -107,7 +125,13 @@ const load = async ({ reduceMotion = false, nodes: nodeOptions = [{}], local = {
     };
     const media = { matches: reduceMotion };
     const window = { matchMedia: () => media };
-    class MutationObserver { observe() {} disconnect() {} }
+    // Each observer is kept, so that a test can change an attribute and call the callback
+    const observers = [];
+    class MutationObserver {
+        constructor(callback) { this.callback = callback; this.target = null; this.connected = false; observers.push(this); }
+        observe(target, options) { this.target = target; this.options = options; this.connected = true; }
+        disconnect() { this.connected = false; }
+    }
     const context = { window, document, RED, MutationObserver, console: { ...console, warn() {} }, setTimeout, clearTimeout, Promise, Map, Set, JSON, Math };
     vm.runInNewContext(SCRIPT, context);
     const reload = () => vm.runInNewContext(SCRIPT, context);
@@ -118,7 +142,7 @@ const load = async ({ reduceMotion = false, nodes: nodeOptions = [{}], local = {
     const part = (node, name) => document.getElementById('nru_popup.' + node.id + '.' + name);
     const wire = (node) => document.getElementById('nru_popup.' + node.id + '.group').children
         .filter(element => element.tagName === 'path');
-    return { document, nodes, store, events, labels, window, media, part, wire, reload };
+    return { document, root, nodeLayer, observers, nodes, store, events, labels, window, media, part, wire, reload };
 };
 
 describe('popup editor script', () => {
@@ -322,7 +346,7 @@ describe('popup editor script', () => {
 
 // A click on the node opens its popup after the double-click delay of 250 ms
 const openByClick = async (part, node) => {
-    const nodeRect = part(node, 'group').parentNode.querySelector('rect');
+    const nodeRect = part(node, 'group').nru_nodeElement.querySelector('rect');
     nodeRect.dispatch('mousedown');
     nodeRect.dispatch('click');
     await new Promise(resolve => setTimeout(resolve, 300));
