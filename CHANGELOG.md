@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.0 (2026-11-14)
 
 - `nodeRedPopup`: a popup that is open stays open after a browser refresh. The browser keeps the open popups in local storage. A popup that closes by itself (`autoCloseTime`) starts closed.
 - `nodeRedConnection`: a new mixin that opens, closes and reconnects a client connection for a node. `manage({ open, close, backoff })` returns `conn`. The connection is open while at least one node holds it with `conn.acquire(node, [onState])`. A failed attempt or a lost client retries after a delay that doubles to a maximum. Only one `open()` runs at a time, and the mixin closes each client one time. It ignores late events of old clients, releases a closed holder at the next `flows:started` so that a restarted user node keeps the connection, and waits 10 s at most for `open()` or `close()`. `conn.ready()` and `conn.client` give the client.
