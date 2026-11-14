@@ -457,6 +457,21 @@ describe('popup editor script', () => {
             assert.equal(part(nodes[0], 'group').nru_nodeElement, newElement);
         });
 
+        it('makes the layer again after the new node layer when the layer is gone', async () => {
+            const { nodes, part, document, root, nodeLayer, events } = await load({ nodes: [{}, {}] });
+            layerOf(document).remove();
+            const newNodeLayer = new nodeLayer.constructor('g');
+            root.appendChild(newNodeLayer);
+            for (const node of nodes) newNodeLayer.appendChild(document.getElementById(node.id));
+            nodeLayer.remove();                         // the editor replaced its node layer
+            root.appendChild(new nodeLayer.constructor('g'));      // a later layer of the editor
+            for (const handler of events['deploy']) await handler();
+            const layer = layerOf(document);
+            assert.ok(layer?.isConnected);
+            assert.equal(newNodeLayer.nextSibling, layer);
+            assert.deepEqual(layer.children, [part(nodes[0], 'group'), part(nodes[1], 'group')]);
+        });
+
         it('stops the auto close timer of a popup that a deploy removes', async () => {
             const { nodes, part, events, window } = await load({ nodes: [{ config: { autoCloseTime: 200 } }] });
             await openByClick(part, nodes[0]);          // opens at 250 ms; the timer closes it at 450 ms
