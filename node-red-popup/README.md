@@ -2,7 +2,7 @@
 
 EXPERIMENTAL. The API and the behavior can change in a minor release.
 
-A small resizable, movable panel attached to a node in the editor. A click on the node opens or closes it. The panel unfurls from the node.
+A small resizable, movable panel attached to a node in the editor. A click on the node opens or closes it. The panel unfurls from the node, and a curved wire draws itself from the node to the panel.
 
 ## Usage
 
@@ -86,17 +86,19 @@ When the editor builds the popup, it asks the runtime for the last message. Afte
 A node gets a popup only if `defaults` has `nru_popupConfig`:
 
 - `width`: pixels, for the full popup. The minimum is 100; a smaller value gives 100.
-- `height`: pixels, for the full popup, with the 20 px status bar. The minimum is 50; a smaller value gives 50.
+- `height`: pixels, for the full popup, with the 22 px title bar and the 20 px status bar. The minimum is 70; a smaller value gives 70.
 - `autoCloseTime`: milliseconds until the popup hides itself. `0` keeps it open.
 - `x`, `y`: optional. The position of the popup's top left corner, in pixels from the top left corner of the node. Negative numbers are allowed. The default is `0` and `50`: under the node.
 
-The content area (`nru_popup.<nodeId>.div`) is 12 px narrower and 32 px lower than the popup. A resize by the user cannot go below 100 x 50 either.
+The content area (`nru_popup.<nodeId>.div`) is 12 px narrower and 54 px lower than the popup. It starts 28 px below the top of the popup. A resize by the user cannot go below 100 x 70 either.
 
 `width`, `height` and `autoCloseTime` must be numbers, 0 or more. `x` and `y` must be numbers. If one is not, the node gets no popup, the editor shows a warning one time for the node type, and the browser console names the bad value.
 
-The user drags the status bar to move a popup, and drags the bottom right corner to resize it. Dots on the status bar show that it moves. A dashed line ties the popup to its node, wherever it is. The new position or size goes into the node's `nru_popupConfig`, so it is saved with the flow. A move or resize follows the zoom of the canvas.
+The title bar at the top of the popup shows the label of the node. A new name shows in the title bar when you close the edit dialog, before a deploy. The × at the right of the title bar closes the popup.
 
-A popup that is open stays open after a browser refresh. The browser keeps the ids of the open popups in its local storage (key `nru_popupOpen`), so this applies to that browser only. A popup with an `autoCloseTime` more than 0 starts closed.
+The user drags the title bar or the status bar to move a popup, and drags the bottom right corner to resize it. Dots on the status bar show that it moves. A curved wire ties the popup to its node, wherever it is. The wire starts at the bottom of the node, or at the top of the node when the popup is above it. It meets the nearest edge of the popup at a right angle. The new position or size goes into the node's `nru_popupConfig`, so it is saved with the flow. A move or resize follows the zoom of the canvas.
+
+A popup that is open stays open after a browser refresh. The browser keeps the ids of the open popups in its local storage (key `nru_popupOpen`), so this applies to that browser only. A popup that the user closes with × or with a click on the node starts closed. A popup with an `autoCloseTime` more than 0 starts closed.
 
 ## Elements
 
@@ -104,11 +106,12 @@ Each popup creates elements with these ids:
 
 - `nru_popup.<nodeId>.div`: the content area. Put your elements here.
 - `nru_popup.<nodeId>.statusText`: the status line. Call its `setStatusText(text)`; long text is cut to fit.
+- `nru_popup.<nodeId>.title`: the title in the title bar. The script sets it to the label of the node. Call its `setTitle()` to read the label again.
 
 ## Behavior
 
-- The popup follows the editor theme (light or dark). The top edge and the dashed line take the `color` of the node type.
-- With `prefers-reduced-motion`, the popup opens and closes without animation.
+- The popup follows the editor theme (light or dark). The title bar, the wire and a soft glow around the popup take the `color` of the node type. The glow does not change and does not pulse.
+- With `prefers-reduced-motion`, the popup opens and closes without animation. The wire does not draw itself; it shows at once.
 - The popup is rebuilt when you change tabs, add the node, or deploy. `nru_popupInit` runs each time, so make it safe to call again.
 - The script draws into the editor's SVG (the node's `<g id="<nodeId>">` and `#red-ui-workspace`). If a future editor changes that structure, the popup can break. It was written for the Node-RED 4.1 editor.
 
