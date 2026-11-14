@@ -113,6 +113,6 @@ Each popup creates elements with these ids:
 - The popup follows the editor theme (light or dark). The title bar, the wire and a soft glow around the popup take the `color` of the node type. The glow does not change and does not pulse.
 - With `prefers-reduced-motion`, the popup opens and closes without animation. The wire does not draw itself; it shows at once.
 - The popup is rebuilt when you change tabs, add the node, or deploy. `nru_popupInit` runs each time, so make it safe to call again.
-- The script draws into the editor's SVG (the node's `<g id="<nodeId>">` and `#red-ui-workspace`). If a future editor changes that structure, the popup can break. It was written for the Node-RED 4.1 editor.
+- The script draws all popups into its own `<g id="nru_popup.layer">`. This layer comes after the editor's node layer. A popup is always above every node and wire. It follows its node when the node moves. The popup that you opened last is on top of the other popups. If a future editor changes the structure of its SVG, the popup can break. It was written for the Node-RED 4.1 editor and checked on Node-RED 5.0.9.
 
 [Back to node-red-utils](../README.md)
