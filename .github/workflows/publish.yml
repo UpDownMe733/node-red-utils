@@ -1,0 +1,27 @@
+name: Publish
+
+# A published GitHub release vX.Y.Z publishes version X.Y.Z to npm.
+# npm trusted publishing: npm accepts this workflow by its OIDC identity. No npm token is stored.
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Node 24 has npm 11, which trusted publishing needs.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - name: The release tag must be v plus the version in package.json
+        run: test "v$(node -p "require('./package.json').version")" = "$GITHUB_REF_NAME"
+      - run: npm ci
+      - run: npm test
+      - run: npm publish
