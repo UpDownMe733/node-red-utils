@@ -108,7 +108,9 @@ const load = async ({ reduceMotion = false, nodes: nodeOptions = [{}], local = {
     const media = { matches: reduceMotion };
     const window = { matchMedia: () => media };
     class MutationObserver { observe() {} disconnect() {} }
-    vm.runInNewContext(SCRIPT, { window, document, RED, MutationObserver, console: { ...console, warn() {} }, setTimeout, clearTimeout, Promise, Map, Set, JSON, Math });
+    const context = { window, document, RED, MutationObserver, console: { ...console, warn() {} }, setTimeout, clearTimeout, Promise, Map, Set, JSON, Math };
+    vm.runInNewContext(SCRIPT, context);
+    const reload = () => vm.runInNewContext(SCRIPT, context);
 
     for (const handler of events['workspace:change']) await handler({ old: 0, workspace: 't1' });
     for (let i = 0; i < 5; i++) await new Promise(setImmediate);
@@ -116,7 +118,7 @@ const load = async ({ reduceMotion = false, nodes: nodeOptions = [{}], local = {
     const part = (node, name) => document.getElementById('nru_popup.' + node.id + '.' + name);
     const wire = (node) => document.getElementById('nru_popup.' + node.id + '.group').children
         .filter(element => element.tagName === 'path');
-    return { document, nodes, store, events, labels, window, media, part, wire };
+    return { document, nodes, store, events, labels, window, media, part, wire, reload };
 };
 
 describe('popup editor script', () => {
@@ -156,6 +158,15 @@ describe('popup editor script', () => {
         labels.n1 = 'Renamed';
         for (const handler of events['nodes:change']) handler(nodes[0]);
         assert.equal(part(nodes[0], 'title').textContent, 'Renamed');
+    });
+
+    it('registers one nodes:change handler for all popups', async () => {
+        const { nodes, events, reload } = await load({ nodes: [{}, {}] });
+        assert.equal(events['nodes:change'].length, 1);
+        for (const handler of events['nodes:add']) await handler(nodes[1]);
+        for (const handler of events['deploy']) await handler();
+        reload();
+        assert.equal(events['nodes:change'].length, 1);
     });
 
     it('a click on the close button closes the popup and removes its id from local storage', async () => {
