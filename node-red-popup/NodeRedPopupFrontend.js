@@ -501,10 +501,24 @@ if (!window.popupInited) {
             }
         };
 
+        // The tracker ids of the listeners of this popup. A removed popup removes its listeners from the tracker.
+        const listenerIds = new Set();
+        const listen = (element, eventType, handler) => {
+            const id = window.popupEventTracker.addListener(element, eventType, handler);
+            listenerIds.add(id);
+            return id;
+        };
+        const unlisten = (id) => {
+            window.popupEventTracker.removeListener(id);
+            listenerIds.delete(id);
+        };
+
         let clickTimer = null;
         let autoCloseTimeout = null;
         // A removed popup must not change the state of its node later. A new popup of the node can be open.
         group.nru_dispose = () => {
+            for (const id of listenerIds) window.popupEventTracker.removeListener(id);
+            listenerIds.clear();
             clearTimeout(clickTimer);
             clearTimeout(autoCloseTimeout);
             bodyAnimation?.cancel();
@@ -548,8 +562,8 @@ if (!window.popupInited) {
             resized = false;
 
             // Add event listeners for drag operations
-            docResizeMouseMoveListener = window.popupEventTracker.addListener(document, 'mousemove', resize);
-            docResizeMouseUpListener = window.popupEventTracker.addListener(document, 'mouseup', stopResize);
+            docResizeMouseMoveListener = listen(document, 'mousemove', resize);
+            docResizeMouseUpListener = listen(document, 'mouseup', stopResize);
             
             event.preventDefault();
             event.stopPropagation();
@@ -567,8 +581,8 @@ if (!window.popupInited) {
         }
         
         const stopResize = () => {
-            window.popupEventTracker.removeListener(docResizeMouseMoveListener);
-            window.popupEventTracker.removeListener(docResizeMouseUpListener);
+            unlisten(docResizeMouseMoveListener);
+            unlisten(docResizeMouseUpListener);
 
             // A click with no drag does not change the size
             if (!resized) return;
@@ -583,8 +597,8 @@ if (!window.popupInited) {
             moved = false;
             grabbed = event.currentTarget;
             grabbed.style.cursor = 'grabbing';
-            docMoveMouseMoveListener = window.popupEventTracker.addListener(document, 'mousemove', move);
-            docMoveMouseUpListener = window.popupEventTracker.addListener(document, 'mouseup', stopMove);
+            docMoveMouseMoveListener = listen(document, 'mousemove', move);
+            docMoveMouseUpListener = listen(document, 'mouseup', stopMove);
             event.preventDefault();
             event.stopPropagation();
         }
@@ -599,8 +613,8 @@ if (!window.popupInited) {
         }
 
         const stopMove = () => {
-            window.popupEventTracker.removeListener(docMoveMouseMoveListener);
-            window.popupEventTracker.removeListener(docMoveMouseUpListener);
+            unlisten(docMoveMouseMoveListener);
+            unlisten(docMoveMouseUpListener);
             if (grabbed) grabbed.style.cursor = 'grab';
             grabbed = null;
             if (moved) saveConfig();
@@ -617,15 +631,15 @@ if (!window.popupInited) {
             setOpen(false);
         }
 
-        window.popupEventTracker.addListener(rectElement, "mousedown", handleRectElementMouseDown);
-        window.popupEventTracker.addListener(rectElement, "click", handleRectElementClick);
-        window.popupEventTracker.addListener(resizeHandle, "mousedown", resizeHandleMouseDown);
-        window.popupEventTracker.addListener(statusBar, "mousedown", moveMouseDown);
-        window.popupEventTracker.addListener(header, "mousedown", moveMouseDown);
-        window.popupEventTracker.addListener(closeButton, "mousedown", closeMouseDown);
-        window.popupEventTracker.addListener(closeButton, "click", closeClick);
-        window.popupEventTracker.addListener(closeButton, "mouseenter", () => { closeHover.style.display = 'block'; });
-        window.popupEventTracker.addListener(closeButton, "mouseleave", () => { closeHover.style.display = 'none'; });
+        listen(rectElement, "mousedown", handleRectElementMouseDown);
+        listen(rectElement, "click", handleRectElementClick);
+        listen(resizeHandle, "mousedown", resizeHandleMouseDown);
+        listen(statusBar, "mousedown", moveMouseDown);
+        listen(header, "mousedown", moveMouseDown);
+        listen(closeButton, "mousedown", closeMouseDown);
+        listen(closeButton, "click", closeClick);
+        listen(closeButton, "mouseenter", () => { closeHover.style.display = 'block'; });
+        listen(closeButton, "mouseleave", () => { closeHover.style.display = 'none'; });
         title.setTitle();
 
         // Run the node's nru_popupInit function

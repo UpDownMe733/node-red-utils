@@ -492,6 +492,34 @@ describe('popup editor script', () => {
             assert.equal(store.nru_popupOpen, undefined);
         });
 
+        it('removes the listeners of a popup that nodes:remove removes, also in the middle of a drag', async () => {
+            const { nodes, part, events, window, document } = await load({ nodes: [{}, {}] });
+            const group = part(nodes[0], 'group');
+            const nodeRect = group.nru_nodeElement.querySelector('rect');
+            part(nodes[0], 'header').dispatch('mousedown');     // a drag starts: listeners on the document
+            const before = window.popupEventTracker.listeners.size;
+            for (const handler of events['nodes:remove']) handler(nodes[0]);
+            const left = [...window.popupEventTracker.listeners.values()];
+            const ofRemoved = left.filter(l => l.element === nodeRect || l.element === document || [...group.all()].includes(l.element));
+            assert.deepEqual(ofRemoved, []);
+            assert.equal(left.length, before - 11);      // 9 on the popup and the node rect, 2 on the document
+            assert.ok(left.some(l => l.element === part(nodes[1], 'header')));
+            assert.deepEqual(document.listeners.mousemove, []);
+            assert.deepEqual(document.listeners.mouseup, []);
+        });
+
+        it('removes the listeners of the old popup when the node element is replaced', async () => {
+            const { nodes, part, events, window, document, nodeLayer, makeNodeElement } = await load();
+            const oldGroup = part(nodes[0], 'group');
+            const oldRect = oldGroup.nru_nodeElement.querySelector('rect');
+            document.getElementById('n1').remove();
+            nodeLayer.appendChild(makeNodeElement('n1'));
+            for (const handler of events['nodes:add']) await handler(nodes[0]);
+            const left = [...window.popupEventTracker.listeners.values()];
+            assert.ok(!left.some(l => l.element === oldRect || [...oldGroup.all()].includes(l.element)));
+            assert.equal(left.length, 9);
+        });
+
         it('puts a popup that stays open after a refresh in the layer', async () => {
             const { nodes, part, document } = await load({ local: { nru_popupOpen: '["n1"]' } });
             assert.equal(part(nodes[0], 'group').parentNode, layerOf(document));
