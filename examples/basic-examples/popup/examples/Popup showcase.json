@@ -10,7 +10,7 @@
         "id": "a1b2c3d4e5f60002",
         "type": "comment",
         "z": "a1b2c3d4e5f60001",
-        "name": "Click a node to open its popup. Drag the coloured title bar to move it, × closes it.",
+        "name": "Click a node to open its popup. Drag the coloured title bar to move it, × closes it. Open the Temperature popup: it stays above the node under it, also after a refresh or a deploy.",
         "info": "",
         "x": 360,
         "y": 40,
@@ -75,7 +75,7 @@
         "nru_popupConfig": { "width": 200, "height": 110, "autoCloseTime": 0, "x": -170, "y": 70 },
         "x": 440,
         "y": 120,
-        "wires": [[]]
+        "wires": [["a1b2c3d4e5f60031"]]
     },
     {
         "id": "a1b2c3d4e5f60022",
@@ -96,5 +96,22 @@
         "x": 440,
         "y": 620,
         "wires": [[]]
+    },
+    {
+        "id": "a1b2c3d4e5f60031",
+        "type": "debug",
+        "z": "a1b2c3d4e5f60001",
+        "name": "Under the popup",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 310,
+        "y": 230,
+        "wires": []
     }
 ]
