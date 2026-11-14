@@ -162,6 +162,19 @@ if (!window.popupInited) {
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
     const SVG_NS = "http://www.w3.org/2000/svg";
 
+    // All popups are in one layer. The layer comes directly after the editor's node layer, so a popup
+    // is above every node and wire. The layer is in the event layer, so it takes the canvas zoom.
+    const popupLayer = (nodeElement) => {
+        let layer = document.getElementById('nru_popup.layer');
+        if (layer && layer.isConnected) return layer;
+        layer?.remove();
+        const nodeLayer = nodeElement.parentNode;
+        layer = document.createElementNS(SVG_NS, 'g');
+        layer.setAttribute('id', 'nru_popup.layer');
+        nodeLayer.parentNode.insertBefore(layer, nodeLayer.nextSibling);
+        return layer;
+    };
+
     const createPopup = async ( node ) => {
 
         if (!node?._def?.defaults?.nru_popupConfig?.value) return;
@@ -330,7 +343,17 @@ if (!window.popupInited) {
         cardDot.style.fill = lineColor;
         for (const element of [halo, tether, anchor, cardDot]) element.style.pointerEvents = 'none';
         group.append(clipPath, halo, tether, anchor, cardDot, frame);
-        svgElement.appendChild(group);
+        // The group is not in the node. It takes the transform of the node, and follows it when the node moves.
+        const followNode = () => {
+            const transform = svgElement.getAttribute('transform');
+            if (transform === null) group.removeAttribute('transform');
+            else group.setAttribute('transform', transform);
+        };
+        followNode();
+        group.nru_observer = new MutationObserver(followNode);
+        group.nru_observer.observe(svgElement, { attributes: true, attributeFilter: ['transform'] });
+        group.nru_nodeElement = svgElement;
+        popupLayer(svgElement).appendChild(group);
 
         // The wire starts at the bottom middle of the node, or at the top middle when the popup is above
         // the node. It ends at the nearest point of the popup. At each end it leaves the edge at a right angle.
@@ -444,7 +467,7 @@ if (!window.popupInited) {
             const duration = reduceMotion.matches ? 0 : (open ? 260 : 120);
             if (open) {
                 group.style.display = 'block';
-                svgElement.parentNode.appendChild(svgElement);  // bring to front
+                group.parentNode?.appendChild(group);  // the popup opened last is on top of the other popups
                 statusText.setStatusText(statusText.fullText);  // text set while hidden is not cut to fit
                 title.setTitle();
                 bodyAnimation = body.animate(
