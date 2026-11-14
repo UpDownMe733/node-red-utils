@@ -179,8 +179,7 @@ if (!window.popupInited) {
     // is above every node and wire. The layer is in the event layer, so it takes the canvas zoom.
     const popupLayer = (nodeElement) => {
         let layer = document.getElementById('nru_popup.layer');
-        if (layer && layer.isConnected) return layer;
-        layer?.remove();
+        if (layer) return layer;
         const nodeLayer = nodeElement.parentNode;
         layer = document.createElementNS(SVG_NS, 'g');
         layer.setAttribute('id', 'nru_popup.layer');
