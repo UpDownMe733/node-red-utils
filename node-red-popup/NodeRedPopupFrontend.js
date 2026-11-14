@@ -129,15 +129,27 @@ if (!window.popupInited) {
     RED.events.on('flows:loaded', () => keepOpen(openIds().filter(id => RED.nodes.node(id))));   // forget deleted nodes
     window.popupEventTracker = new window.DOMEventTracker();
 
+    // Stop following the node and remove the popup
+    const removePopupGroup = (group) => {
+        group.nru_observer?.disconnect();
+        group.remove();
+    };
+
     const removePopups = async (workspace) => {
         window.popupEventTracker.removeAllListeners();
         RED.nodes.filterNodes( {z:workspace} ).forEach ( node => {
-            document.getElementById('nru_popup.' + node.id + '.group')?.remove();
+            const group = document.getElementById('nru_popup.' + node.id + '.group');
+            if (group) removePopupGroup(group);
         });
     }
 
     const addPopups = async (workspace) => {
         await window.nru_waitForWorkspaceChanges(100);
+        // Remove the popups of node elements that the editor removed
+        const layer = document.getElementById('nru_popup.layer');
+        for (const group of [...(layer?.children || [])]) {
+            if (!group.nru_nodeElement?.isConnected) removePopupGroup(group);
+        }
         RED.nodes.filterNodes( {z:workspace} ).forEach ( async node => {
             createPopup( node );
         });
@@ -195,8 +207,13 @@ if (!window.popupInited) {
             return;
         }
                 
-        // Exit if already added bc we are getting multiple workspace change events or something
-        if (document.getElementById("nru_popup." + node.id + ".group") ) return;
+        // Exit if already added bc we are getting multiple workspace change events or something.
+        // The editor can replace the element of a node on a deploy. Then the old popup is removed and a new one is made.
+        const existing = document.getElementById("nru_popup." + node.id + ".group");
+        if (existing) {
+            if (existing.nru_nodeElement === document.getElementById(node.id)) return;
+            removePopupGroup(existing);
+        }
 
         // Just in case we got here without NodeRED being finished adding nodes to the workspace
         if (!document.getElementById(node.id)) return;
@@ -634,6 +651,12 @@ if (!window.popupInited) {
     RED.events.on('workspace:change', async (event) => {
         if (event?.old !== 0) { removePopups(event.old) };
         addPopups(event.workspace);
+    });
+
+    // remove the popup when its node is removed (delete, cut, undo of an add, convert to subflow)
+    RED.events.on('nodes:remove', (node) => {
+        const group = document.getElementById('nru_popup.' + node?.id + '.group');
+        if (group) removePopupGroup(group);
     });
 
     // add popup elements on when new node is added
