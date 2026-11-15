@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.4.0 (2026-11-15)
 
 - `nodeRedPopup`: a popup is always above the nodes and wires of the workspace. Before, a node later in the flow, a new node, or a re-ordered node could cover an open popup, for example after a refresh or a deploy. The popups are now in their own SVG layer above the nodes.
 - `nodeRedPopup`: the popup has a title bar in the color of its node. The title bar shows the label of the node, moves the popup when you drag it, and has a × that closes the popup. A curved wire with a faint halo ties the popup to its node; it draws itself on open and goes back on close. A soft glow in the color of the node is around the popup. Breaking change: the content area starts 22 px lower, and the minimum height is 70 (was 50).
